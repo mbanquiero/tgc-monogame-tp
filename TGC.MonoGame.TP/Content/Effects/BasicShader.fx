@@ -1,10 +1,10 @@
 ﻿#if OPENGL
-	#define SV_POSITION POSITION
-	#define VS_SHADERMODEL vs_3_0
-	#define PS_SHADERMODEL ps_3_0
+#define SV_POSITION POSITION
+#define VS_SHADERMODEL vs_3_0
+#define PS_SHADERMODEL ps_3_0
 #else
-	#define VS_SHADERMODEL vs_4_0_level_9_1
-	#define PS_SHADERMODEL ps_4_0_level_9_1
+#define VS_SHADERMODEL vs_4_0_level_9_1
+#define PS_SHADERMODEL ps_4_0_level_9_1
 #endif
 
 float4x4 World;
@@ -14,54 +14,67 @@ float4x4 Projection;
 struct VertexShaderInput
 {
 	float4 Position : POSITION0;
-	float4 Color : COLOR0;
-    float2 TextureCoordinate : TEXCOORD0;
+	float4 Normal: NORMAL0;
+	float2 TextureCoordinate : TEXCOORD0;
 };
 
 struct VertexShaderOutput
 {
 	float4 Position : SV_POSITION;
-    float4 Color : COLOR0;
-    float2 TextureCoordinate : TEXCOORD1;
+	float2 TextureCoordinate : TEXCOORD1;
+	float3 WorldPos: TEXCOORD2;
+	float3 Normal: TEXCOORD3;
 };
+
+
+
 
 texture ModelTexture;
 sampler2D textureSampler = sampler_state
 {
-    Texture = (ModelTexture);
-    MagFilter = Linear;
-    MinFilter = Linear;
-    AddressU = Clamp;
-    AddressV = Clamp;
+	Texture = (ModelTexture);
+	MagFilter = Linear;
+	MinFilter = Linear;
+	AddressU = Wrap;
+	AddressV = Wrap;
 };
 
 float Time = 0;
 
+
 VertexShaderOutput MainVS(in VertexShaderInput input)
 {
 	VertexShaderOutput output = (VertexShaderOutput)0;
-
-    float4 worldPosition = mul(input.Position, World);
-    float4 viewPosition = mul(worldPosition, View);
-	
+	float4 worldPosition = mul(input.Position, World);
+	float4 viewPosition = mul(worldPosition, View);
 	// Project position
-    output.Position = mul(viewPosition, Projection);
+	output.Position = mul(viewPosition, Projection);
+
+	// Normal
+	output.Normal = mul ( (float3x3)World, input.Normal );
 
 	// Propagate texture coordinates
-    output.TextureCoordinate = input.TextureCoordinate;
+	output.TextureCoordinate = input.TextureCoordinate;
 
-	// Propagate color by vertex
-    output.Color = input.Color;
+	// Pos en world
+	output.WorldPos = worldPosition.xyz;
 
-    return output;
+	return output;
 }
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
-    return input.Color;
+	float3 LightPos = float3(1000, 5000, 1000);
+	float3 L = normalize(LightPos - input.WorldPos);
+	float3 N = normalize(input.Normal);
+	float kd = abs(dot(N, L)) + 0.1;
+	float4 clr = tex2D(textureSampler, input.TextureCoordinate);
+	clr.rgb *= kd;
+	return clr ;
 }
 
-technique BasicColorDrawing
+
+technique TextureDrawing
 {
 	pass P0
 	{
@@ -69,3 +82,5 @@ technique BasicColorDrawing
 		PixelShader = compile PS_SHADERMODEL MainPS();
 	}
 };
+
+

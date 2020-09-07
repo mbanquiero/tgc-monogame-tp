@@ -12,19 +12,39 @@ namespace TGC.MonoGame.TP
     /// </summary>
     public class TGCGame : Game
     {
-        public const string ContentFolder3D = "Models/";
-        public const string ContentFolderEffect = "Effects/";
-        public const string ContentFolderMusic = "Music/";
-        public const string ContentFolderSounds = "Sounds/";
-        public const string ContentFolderSpriteFonts = "SpriteFonts/";
-        public const string ContentFolderTextures = "Textures/";
+        public bool ver_mesh = false;
+        public const string MyContentFolder = "C:\\Counter-Strike Source\\cstrike\\";
+        public const string map_name = "cs_assault";
+        //"de_mirage_csgo"
+        public String mesh_name = "props\\de_train\\utility_truck";
+        //public String mesh_name = "props_junk\\garbage_bag001a";
+
+        public float fieldOfView = MathHelper.PiOver4;
+        public float aspectRatio = 1;
+        public float nearClipPlane = 5;
+        public float farClipPlane = 50000;
+        Matrix Projection, View;
+        public Vector3 viewDir = new Vector3(0, 0, 1);
+        public Vector3 posPlayer = new Vector3(5120, -577, 4160);
+        public Effect EffectMesh;
+        public CBspFile scene;
+        public CMdlMesh mesh;
+
+        // tool ver mesh
+        public Vector3 LookAt = new Vector3(0, 0, 0), LookFrom = new Vector3(100, 0, 100);
+
+        public SpriteFont font;
+        public SpriteBatch spriteBatch;
+        public bool[] keyDown = new bool[256];
+
+        public bool fisica = false;
+
 
         /// <summary>
         ///     Constructor del juego.
         /// </summary>
         public TGCGame()
         {
-            // Maneja la configuracion y la administracion del dispositivo grafico.
             Graphics = new GraphicsDeviceManager(this);
             // Descomentar para que el juego sea pantalla completa.
             // Graphics.IsFullScreen = true;
@@ -35,74 +55,180 @@ namespace TGC.MonoGame.TP
         }
 
         private GraphicsDeviceManager Graphics { get; }
-        private SpriteBatch SpriteBatch { get; set; }
-        private Model Model { get; set; }
-        private float Rotation { get; set; }
-        private Matrix World { get; set; }
-        private Matrix View { get; set; }
-        private Matrix Projection { get; set; }
 
-        /// <summary>
-        ///     Se llama una sola vez, al principio cuando se ejecuta el ejemplo.
-        ///     Escribir aquí todo el código de inicialización: todo procesamiento que podemos pre calcular para nuestro juego.
-        /// </summary>
         protected override void Initialize()
         {
-            // La logica de inicializacion que no depende del contenido se recomienda poner en este metodo.
-
-            // Apago el backface culling.
-            // Esto se hace por un problema en el diseno del modelo del logo de la materia.
-            // Una vez que empiecen su juego, esto no es mas necesario y lo pueden sacar.
-            var rasterizerState = new RasterizerState();
-            rasterizerState.CullMode = CullMode.None;
-            GraphicsDevice.RasterizerState = rasterizerState;
-            // Seria hasta aca.
-
-            // Configuramos nuestras matrices de la escena.
-            World = Matrix.CreateRotationY(MathHelper.Pi);
-            View = Matrix.CreateLookAt(Vector3.UnitZ * 150, Vector3.Zero, Vector3.Up);
-            Projection =
-                Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, GraphicsDevice.Viewport.AspectRatio, 1, 250);
-
+            aspectRatio = GraphicsDevice.Viewport.AspectRatio;
+            Projection = Matrix.CreatePerspectiveFieldOfView(fieldOfView, aspectRatio, nearClipPlane, farClipPlane);
+            Graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
+            Graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
+            Graphics.ApplyChanges();
             base.Initialize();
         }
 
-        /// <summary>
-        ///     Se llama una sola vez, al principio cuando se ejecuta el ejemplo, despues de Initialize.
-        ///     Escribir aqui el codigo de inicializacion: cargar modelos, texturas, estructuras de optimizacion, el
-        ///     procesamiento que podemos pre calcular para nuestro juego.
-        /// </summary>
         protected override void LoadContent()
         {
-            // Aca es donde deberiamos cargar todos los contenido necesarios antes de iniciar el juego.
-            SpriteBatch = new SpriteBatch(GraphicsDevice);
+            font = Content.Load<SpriteFont>("SpriteFonts/Arial");
+            spriteBatch = new SpriteBatch(GraphicsDevice);
+            EffectMesh = Content.Load<Effect>("Effects/BasicShader");
 
-            // Cargo el modelo del logo.
-            Model = Content.Load<Model>(ContentFolder3D + "tgc-logo/tgc-logo");
-            // Obtengo su efecto para cambiarle el color y activar la luz predeterminada que tiene MonoGame.
-            var modelEffect = (BasicEffect) Model.Meshes[0].Effects[0];
-            modelEffect.DiffuseColor = Color.DarkBlue.ToVector3();
-            modelEffect.EnableDefaultLighting();
+            
+            scene = new CBspFile(map_name, GraphicsDevice, Content);
+            posPlayer = scene.cg;
+            //posPlayer = new Vector3(0, 400, 0);
+            posPlayer = new Vector3(5300, -700, 5250);
+
+
+            mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
+            LookAt = mesh.cg;
+            LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
 
             base.LoadContent();
         }
-
-        /// <summary>
-        ///     Se llama en cada frame.
-        ///     Se debe escribir toda la lógica de computo del modelo, así como también verificar entradas del usuario y reacciones
-        ///     ante ellas.
-        /// </summary>
         protected override void Update(GameTime gameTime)
         {
             // Aca deberiamos poner toda la logica de actualizacion del juego.
 
             // Capturar Input teclado
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+            var keyState = Keyboard.GetState();
+            if (keyState.IsKeyDown(Keys.Escape))
                 //Salgo del juego.
                 Exit();
 
-            // Basado en el tiempo que paso se va generando una rotacion.
-            Rotation += Convert.ToSingle(gameTime.ElapsedGameTime.TotalSeconds);
+            if (ver_mesh)
+            {
+                // tool ver mesh
+                // Press Directional Keys to rotate cube
+                if (keyState.IsKeyDown(Keys.Up)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(-0.05f));
+
+                if (keyState.IsKeyDown(Keys.Down)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(0.05f));
+
+                if (keyState.IsKeyDown(Keys.Left)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(-0.05f));
+
+                if (keyState.IsKeyDown(Keys.Right)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(0.05f));
+
+                float elapsedTime = gameTime.ElapsedGameTime.Milliseconds;
+
+                View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
+
+            }
+            else
+            {
+
+                Vector3 posAnt = posPlayer;
+                if (keyState.IsKeyDown(Keys.Up)) posPlayer += viewDir * 10;
+
+                if (keyState.IsKeyDown(Keys.Down)) posPlayer -= viewDir * 10;
+
+                if (keyState.IsKeyDown(Keys.Left)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(0.05f));
+
+                if (keyState.IsKeyDown(Keys.Right)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(-0.05f));
+
+                if (keyState.IsKeyDown(Keys.LeftControl)) posPlayer.Y += 10;
+                if (keyState.IsKeyDown(Keys.LeftShift)) posPlayer.Y -= 10;
+
+
+                /*
+                if (keyState.IsKeyDown(Keys.PageDown))
+                {
+                    if (!keyDown[(int)Keys.PageDown])
+                        scene.current_subset++;
+                    keyDown[(int)Keys.PageDown] = true;
+                }
+                else
+                    keyDown[(int)Keys.PageDown] = false;
+
+                if (keyState.IsKeyDown(Keys.PageUp))
+                {
+                    if (!keyDown[(int)Keys.PageUp])
+                        scene.current_subset--;
+                    keyDown[(int)Keys.PageUp] = true;
+                }
+                else
+                    keyDown[(int)Keys.PageUp] = false;
+
+
+                if (scene.current_subset < 0)
+                    scene.current_subset = 0;
+                else
+                if (scene.current_subset > scene.cant_subsets - 1)
+                    scene.current_subset = scene.cant_subsets - 1;
+                */
+
+
+                if (keyState.IsKeyDown(Keys.PageDown))
+                {
+                    if (!keyDown[(int)Keys.PageDown] && scene.current_model < scene.cant_modelos - 1)
+                    {
+                        scene.current_model++;
+                        posPlayer = scene.modelos[scene.current_model].origin - new Vector3(100, 0, 100);
+                    }
+                    keyDown[(int)Keys.PageDown] = true;
+                }
+                else
+                    keyDown[(int)Keys.PageDown] = false;
+
+                if (keyState.IsKeyDown(Keys.PageUp))
+                {
+                    if (!keyDown[(int)Keys.PageUp] && scene.current_model > 0)
+                    {
+                        scene.current_model--;
+                        posPlayer = scene.modelos[scene.current_model].origin - new Vector3(100, 0, 100);
+                    }
+                    keyDown[(int)Keys.PageUp] = true;
+                }
+                else
+                    keyDown[(int)Keys.PageUp] = false;
+
+
+
+                if (keyState.IsKeyDown(Keys.Space))
+                {
+                    if (!keyDown[(int)Keys.Space])
+                        fisica = !fisica;
+                    keyDown[(int)Keys.Space] = true;
+                }
+                else
+                    keyDown[(int)Keys.Space] = false;
+
+                if (keyState.IsKeyDown(Keys.T))
+                {
+                    if (!keyDown[(int)Keys.T])
+                        scene.mostrar_tools = !scene.mostrar_tools;
+                    keyDown[(int)Keys.T] = true;
+                }
+                else
+                    keyDown[(int)Keys.T] = false;
+
+                if (fisica)
+                {
+                    Vector3 dir = posPlayer - posAnt;
+                    if (dir.LengthSquared() > 0)
+                    {
+                        dir.Normalize();
+                        float s = scene.intersectSegment(posAnt, posAnt + dir * 30);
+                        if (s < 1000)
+                        {
+                            posPlayer = posAnt;
+                        }
+                    }
+
+                    float t = scene.intersectSegment(posPlayer, posPlayer - new Vector3(0, 100, 0));
+                    if (t < 1000)
+                    {
+                        // toca piso
+                        posPlayer.Y -= t * 100 - 50;
+                    }
+                    else
+                    {
+                        // esta en el aire
+                        float et = (float)gameTime.ElapsedGameTime.TotalSeconds;
+                        posPlayer.Y -= et * 250;
+                    }
+
+                }
+                View = Matrix.CreateLookAt(posPlayer, posPlayer + viewDir, new Vector3(0, 1, 0));
+            }
 
             base.Update(gameTime);
         }
@@ -113,12 +239,36 @@ namespace TGC.MonoGame.TP
         /// </summary>
         protected override void Draw(GameTime gameTime)
         {
-            // Aca deberiamos poner toda la logia de renderizado del juego.
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+            GraphicsDevice.RasterizerState = RasterizerState.CullNone;
             GraphicsDevice.Clear(Color.Black);
 
-            //Finalmente invocamos al draw del modelo.
-            Model.Draw(World * Matrix.CreateRotationY(Rotation), View, Projection);
+            /*
+			RasterizerState rasterizerState = new RasterizerState();
+			rasterizerState.FillMode = FillMode.WireFrame;
+			GraphicsDevice.RasterizerState = rasterizerState;
+			*/
 
+            if (ver_mesh)
+            {
+                // mesh
+                EffectMesh.CurrentTechnique = EffectMesh.Techniques["TextureDrawing"];
+                mesh.Draw(GraphicsDevice, EffectMesh, Matrix.Identity, View, Projection);
+            }
+            else
+            {
+                // escenario
+                scene.Draw(Matrix.Identity, View, Projection);
+            }
+
+            //float t = scene.intersectSegment(posPlayer, posPlayer - new Vector3(0, 1000, 0))*1000;
+            spriteBatch.Begin();
+            //spriteBatch.DrawString(font, "Subset:"+scene.current_subset+
+            //"  " + scene.subset[scene.current_subset].image_name, new Vector2(10, 10), Color.YellowGreen);
+            spriteBatch.DrawString(font, "X:" + posPlayer.X + "  Z:"+posPlayer.Z, new Vector2(10, 10), Color.YellowGreen);
+            
+            spriteBatch.End();
+ 
             base.Draw(gameTime);
         }
 
