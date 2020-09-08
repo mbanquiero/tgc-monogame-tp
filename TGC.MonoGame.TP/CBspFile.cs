@@ -55,12 +55,12 @@ namespace TGC.MonoGame.TP
 								   new Vector4(0, 0, 1, 0),
 								   new Vector4(0, 1, 0, 0),
 								   new Vector4(0, 0, 0, 1));
-
-			Matrix pitch = Matrix.CreateRotationX(angles.X);
+		
+			Matrix pitch = Matrix.CreateRotationX(-angles.X);
 			Matrix yaw = Matrix.CreateRotationZ(angles.Y);
-			Matrix roll = Matrix.CreateRotationY(angles.Z);
+			Matrix roll = Matrix.CreateRotationY(-angles.Z);
 
-			Matrix mat_world = T*pitch*yaw*roll*T*Matrix.CreateTranslation(origin);
+			Matrix mat_world = T * pitch * yaw * roll * T * Matrix.CreateTranslation(origin);
 			return mat_world;
 		}
 
@@ -267,7 +267,7 @@ namespace TGC.MonoGame.TP
 				if (z > max_z)
 					max_z = z;
 
-				vertices[i].TextureCoordinate.X = -BitConverter.ToSingle(arrayByte, t); t += 4;
+				vertices[i].TextureCoordinate.X = BitConverter.ToSingle(arrayByte, t); t += 4;
 				vertices[i].TextureCoordinate.Y = BitConverter.ToSingle(arrayByte, t); t += 4;
 
 				vertices[i].LightmapCoordinate.X = -BitConverter.ToSingle(arrayByte, t); t += 4;

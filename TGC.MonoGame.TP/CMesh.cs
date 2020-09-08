@@ -87,7 +87,7 @@ namespace TGC.MonoGame.TP
 				};
 				*/
 
-				var x = vertices[i].Position.X = BitConverter.ToSingle(arrayByte, t); t += 4;
+				var x = vertices[i].Position.X = -BitConverter.ToSingle(arrayByte, t); t += 4;
 				var z = vertices[i].Position.Z = BitConverter.ToSingle(arrayByte, t); t += 4;
 				var y = vertices[i].Position.Y = BitConverter.ToSingle(arrayByte, t); t += 4;
 				vertices[i].Normal.X = -BitConverter.ToSingle(arrayByte, t); t += 4;

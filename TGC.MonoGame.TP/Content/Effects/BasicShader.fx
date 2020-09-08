@@ -35,8 +35,8 @@ sampler2D textureSampler = sampler_state
 	Texture = (ModelTexture);
 	MagFilter = Linear;
 	MinFilter = Linear;
-	AddressU = Wrap;
-	AddressV = Wrap;
+	AddressU = Mirror;
+	AddressV = Mirror;
 };
 
 float Time = 0;
@@ -68,7 +68,9 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	float3 L = normalize(LightPos - input.WorldPos);
 	float3 N = normalize(input.Normal);
 	float kd = abs(dot(N, L)) + 0.1;
-	float4 clr = tex2D(textureSampler, input.TextureCoordinate);
+	float u = input.TextureCoordinate.x;
+	float v = input.TextureCoordinate.y;
+	float4 clr = tex2D(textureSampler, float2(u,v));
 	clr.rgb *= kd;
 	return clr ;
 }

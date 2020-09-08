@@ -25,10 +25,13 @@ namespace TGC.MonoGame.TP
         public float farClipPlane = 50000;
         Matrix Projection, View;
         public Vector3 viewDir = new Vector3(0, 0, 1);
-        public Vector3 posPlayer = new Vector3(5120, -577, 4160);
+        //public Vector3 posPlayer = new Vector3(5120, -577, 4160);
+        public Vector3 posPlayer = new Vector3(6631, 0, 4000);
         public Effect EffectMesh;
         public CBspFile scene;
         public CMdlMesh mesh;
+
+        public int mouse_ox = 0, mouse_oy = 0;
 
         // tool ver mesh
         public Vector3 LookAt = new Vector3(0, 0, 0), LookFrom = new Vector3(100, 0, 100);
@@ -51,7 +54,7 @@ namespace TGC.MonoGame.TP
             // Carpeta raiz donde va a estar toda la Media.
             Content.RootDirectory = "Content";
             // Hace que el mouse sea visible.
-            IsMouseVisible = true;
+            IsMouseVisible = false;
         }
 
         private GraphicsDeviceManager Graphics { get; }
@@ -60,10 +63,12 @@ namespace TGC.MonoGame.TP
         {
             aspectRatio = GraphicsDevice.Viewport.AspectRatio;
             Projection = Matrix.CreatePerspectiveFieldOfView(fieldOfView, aspectRatio, nearClipPlane, farClipPlane);
+            Projection.M11 *= -1;           // dif. de convencion con el motor de Source
             Graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
             Graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
             Graphics.ApplyChanges();
             base.Initialize();
+            Mouse.SetPosition(mouse_ox = GraphicsDevice.Viewport.Width / 2,mouse_oy = GraphicsDevice.Viewport.Height / 2);
         }
 
         protected override void LoadContent()
@@ -75,13 +80,14 @@ namespace TGC.MonoGame.TP
             
             scene = new CBspFile(map_name, GraphicsDevice, Content);
             posPlayer = scene.cg;
-            //posPlayer = new Vector3(0, 400, 0);
-            posPlayer = new Vector3(5300, -700, 5250);
+            //posPlayer = new Vector3(5300, -700, 5250);
+            posPlayer = new Vector3(5631, -600, 4600);
 
 
-            mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
+              mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
             LookAt = mesh.cg;
             LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
+
 
             base.LoadContent();
         }
@@ -114,15 +120,25 @@ namespace TGC.MonoGame.TP
             }
             else
             {
+                float elapsed_time = (float)gameTime.ElapsedGameTime.TotalSeconds;
+                MouseState state = Mouse.GetState();
+                int dx = state.X - mouse_ox;
+                int dy = state.Y - mouse_oy;
+                float vel_mouse = elapsed_time * 0.25f;
+                viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(dx * vel_mouse));
+                Vector3 N = Vector3.Cross(new Vector3(0, 1, 0), viewDir);
+                viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateFromAxisAngle(N,dy * vel_mouse));
+                Mouse.SetPosition(mouse_ox,mouse_oy);
+
 
                 Vector3 posAnt = posPlayer;
                 if (keyState.IsKeyDown(Keys.Up)) posPlayer += viewDir * 10;
 
                 if (keyState.IsKeyDown(Keys.Down)) posPlayer -= viewDir * 10;
 
-                if (keyState.IsKeyDown(Keys.Left)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(0.05f));
+                //if (keyState.IsKeyDown(Keys.Left)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(-0.05f));
 
-                if (keyState.IsKeyDown(Keys.Right)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(-0.05f));
+                //if (keyState.IsKeyDown(Keys.Right)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(0.05f));
 
                 if (keyState.IsKeyDown(Keys.LeftControl)) posPlayer.Y += 10;
                 if (keyState.IsKeyDown(Keys.LeftShift)) posPlayer.Y -= 10;
@@ -265,7 +281,7 @@ namespace TGC.MonoGame.TP
             spriteBatch.Begin();
             //spriteBatch.DrawString(font, "Subset:"+scene.current_subset+
             //"  " + scene.subset[scene.current_subset].image_name, new Vector2(10, 10), Color.YellowGreen);
-            spriteBatch.DrawString(font, "X:" + posPlayer.X + "  Z:"+posPlayer.Z, new Vector2(10, 10), Color.YellowGreen);
+            spriteBatch.DrawString(font, "X:" + posPlayer.X + "Y:" + posPlayer.Y     + "  Z:" +posPlayer.Z, new Vector2(10, 10), Color.YellowGreen);
             
             spriteBatch.End();
  
