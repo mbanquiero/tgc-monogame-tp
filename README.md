@@ -12,7 +12,7 @@ Los recursos usados se almacenan utilizando [Git LFS](https://git-lfs.github.com
 
 ## Capturas
 
-![screenshot1](https://drive.google.com/file/d/132CyNjjO-vndKJcSFuzVuopTMf2dC4If/view?usp=sharing)
+![image](https://drive.google.com/uc?export=view&id=132CyNjjO-vndKJcSFuzVuopTMf2dC4If)
 ![screenshot2](https://drive.google.com/file/d/1rVcFCGQ9A6rLgBvZ_sWOTLWzkfDKEsOM/view?usp=sharing)
 ![screenshot3](https://drive.google.com/file/d/1umF4uArDmcEbeiMmzLmvd4YNXyMgW22L/view?usp=sharing)
 
