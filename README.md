@@ -11,10 +11,10 @@ Los recursos usados se almacenan utilizando [Git LFS](https://git-lfs.github.com
 
 
 ## Capturas
-
 ![image](https://drive.google.com/uc?export=view&id=132CyNjjO-vndKJcSFuzVuopTMf2dC4If)
-![screenshot2](https://drive.google.com/file/d/1rVcFCGQ9A6rLgBvZ_sWOTLWzkfDKEsOM/view?usp=sharing)
-![screenshot3](https://drive.google.com/file/d/1umF4uArDmcEbeiMmzLmvd4YNXyMgW22L/view?usp=sharing)
+![image](https://drive.google.com/uc?export=view&id=1rVcFCGQ9A6rLgBvZ_sWOTLWzkfDKEsOM)
+![image](https://drive.google.com/uc?export=view&id=1umF4uArDmcEbeiMmzLmvd4YNXyMgW22L)
+
 
 ## Game Play
 [![Watch the video](https://img.youtube.com/vi/pgEwUC0jvH4/0.jpg)](https://www.youtube.com/playlist?list=PLRM4L32DjvnazuMl8wZlbpEYL5Qh63ulG)
