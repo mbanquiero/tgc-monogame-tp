@@ -13,25 +13,36 @@ namespace TGC.MonoGame.TP
     public class TGCGame : Game
     {
         public bool ver_mesh = false;
-        public const string MyContentFolder = "C:\\Counter-Strike Source\\cstrike\\";
+        public bool ver_modelo = false;
+        public const string SkinnedMeshFolder = "C:\\monogames\\tp\\TGC.MonoGame.TP\\Content\\SkinnedModels\\";
+        public const string ContentFolder = "C:\\Counter-Strike Source\\cstrike\\";
         public const string map_name = "cs_assault";
         //"de_mirage_csgo"
-        public String mesh_name = "props\\de_train\\utility_truck";
+        //public String mesh_name = "props\\de_train\\utility_truck";
+        //public String mesh_name = "props/cs_assault/MoneyPallet_WasherDryer";
+        //public String mesh_name = "props/cs_assault/money";
         //public String mesh_name = "props_junk\\garbage_bag001a";
-
+        //public String mesh_name = "props_borealis\\borealis_door001a";
+        public String mesh_name = "combine_soldier";
         public float fieldOfView = MathHelper.PiOver4;
         public float aspectRatio = 1;
         public float nearClipPlane = 5;
         public float farClipPlane = 50000;
         Matrix Projection, View;
-        public Vector3 viewDir = new Vector3(0, 0, 1);
-        //public Vector3 posPlayer = new Vector3(5120, -577, 4160);
-        public Vector3 posPlayer = new Vector3(6631, 0, 4000);
+
+        public CPlayer player;
+        public CEnemy enemigo;
+
         public Effect EffectMesh;
         public CBspFile scene;
         public CMdlMesh mesh;
 
-        public int mouse_ox = 0, mouse_oy = 0;
+        // skinned mesh
+        public SkinnedModel CharacterMesh;
+        public SkinnedModelAnimation AnimationIdle;
+        public SkinnedModelInstance ModelInstance;
+        public Texture2D CharacterTexture;
+        public Effect SkinnedModelEffect;
 
         // tool ver mesh
         public Vector3 LookAt = new Vector3(0, 0, 0), LookFrom = new Vector3(100, 0, 100);
@@ -54,7 +65,7 @@ namespace TGC.MonoGame.TP
             // Carpeta raiz donde va a estar toda la Media.
             Content.RootDirectory = "Content";
             // Hace que el mouse sea visible.
-            IsMouseVisible = false;
+            IsMouseVisible = true;
         }
 
         private GraphicsDeviceManager Graphics { get; }
@@ -68,7 +79,7 @@ namespace TGC.MonoGame.TP
             Graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
             Graphics.ApplyChanges();
             base.Initialize();
-            Mouse.SetPosition(mouse_ox = GraphicsDevice.Viewport.Width / 2,mouse_oy = GraphicsDevice.Viewport.Height / 2);
+            //Mouse.SetPosition(mouse_ox = GraphicsDevice.Viewport.Width / 2,mouse_oy = GraphicsDevice.Viewport.Height / 2);
         }
 
         protected override void LoadContent()
@@ -77,44 +88,73 @@ namespace TGC.MonoGame.TP
             spriteBatch = new SpriteBatch(GraphicsDevice);
             EffectMesh = Content.Load<Effect>("Effects/BasicShader");
 
-            
-            scene = new CBspFile(map_name, GraphicsDevice, Content);
-            posPlayer = scene.cg;
-            //posPlayer = new Vector3(5300, -700, 5250);
-            posPlayer = new Vector3(5631, -600, 4600);
+            CharacterMesh = new SkinnedModel();
+            CharacterMesh.GraphicsDevice = GraphicsDevice;
+            CharacterMesh.FilePath = SkinnedMeshFolder + "FBX 2013\\zombiegirl_w_kurniawan.fbx";
+            CharacterMesh.Initialize();
+            AnimationIdle = new SkinnedModelAnimation();
+            AnimationIdle.FilePath = SkinnedMeshFolder + "Female Tough Walk.dae";
+            AnimationIdle.Load();
+            ModelInstance = new SkinnedModelInstance();
+            ModelInstance.Mesh = CharacterMesh;
+            ModelInstance.SpeedTransitionSecond = 0.4f;
+            ModelInstance.Initialize();
+            ModelInstance.SetAnimation(AnimationIdle);
+            CharacterTexture = CTextureLoader.Load(GraphicsDevice, SkinnedMeshFolder+"zombie_diffuse.png");
+            SkinnedModelEffect = Content.Load<Effect>("Effects/SkinnedModelEffect");
 
+            if (ver_modelo)
+            {
+                LookAt = new Vector3(0, 200, 0);
+                LookFrom = new Vector3(900, 550, 0);
+            }
+            else
+            if(ver_mesh)
+            {
+                mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
+                LookAt = mesh.cg;
+                LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
+            }
+            else
+            {
+                scene = new CBspFile(map_name, GraphicsDevice, Content);
+                player = new CPlayer(scene);
+                enemigo = new CEnemy(scene);
 
-              mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
-            LookAt = mesh.cg;
-            LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
+                player.Position = scene.cg;
+                player.Direction = new Vector3(0,0,1);
 
+                enemigo.Position = new Vector3(7242, -493, 6746);
+                enemigo.Direction = new Vector3(0, 0, -1);
+
+            }
 
             base.LoadContent();
         }
         protected override void Update(GameTime gameTime)
         {
-            // Aca deberiamos poner toda la logica de actualizacion del juego.
-
-            // Capturar Input teclado
             var keyState = Keyboard.GetState();
             if (keyState.IsKeyDown(Keys.Escape))
                 //Salgo del juego.
                 Exit();
 
-            if (ver_mesh)
+
+            if(ver_modelo)
+            {
+                ModelInstance.Transformation = Matrix.CreateScale(3.0f) * Matrix.CreateRotationY(2.5f * (float)gameTime.TotalGameTime.TotalSeconds);
+            }
+
+            ModelInstance.UpdateBoneAnimations(gameTime);
+            ModelInstance.UpdateBones(gameTime);
+
+            if (ver_mesh || ver_modelo)
             {
                 // tool ver mesh
                 // Press Directional Keys to rotate cube
                 if (keyState.IsKeyDown(Keys.Up)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(-0.05f));
-
                 if (keyState.IsKeyDown(Keys.Down)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(0.05f));
-
                 if (keyState.IsKeyDown(Keys.Left)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(-0.05f));
-
                 if (keyState.IsKeyDown(Keys.Right)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(0.05f));
-
-                float elapsedTime = gameTime.ElapsedGameTime.Milliseconds;
-
                 View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
 
             }
@@ -122,82 +162,6 @@ namespace TGC.MonoGame.TP
             {
                 float elapsed_time = (float)gameTime.ElapsedGameTime.TotalSeconds;
                 MouseState state = Mouse.GetState();
-                int dx = state.X - mouse_ox;
-                int dy = state.Y - mouse_oy;
-                float vel_mouse = elapsed_time * 0.25f;
-                viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(dx * vel_mouse));
-                Vector3 N = Vector3.Cross(new Vector3(0, 1, 0), viewDir);
-                viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateFromAxisAngle(N,dy * vel_mouse));
-                Mouse.SetPosition(mouse_ox,mouse_oy);
-
-
-                Vector3 posAnt = posPlayer;
-                if (keyState.IsKeyDown(Keys.Up)) posPlayer += viewDir * 10;
-
-                if (keyState.IsKeyDown(Keys.Down)) posPlayer -= viewDir * 10;
-
-                //if (keyState.IsKeyDown(Keys.Left)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(-0.05f));
-
-                //if (keyState.IsKeyDown(Keys.Right)) viewDir = Vector3.TransformNormal(viewDir, Matrix.CreateRotationY(0.05f));
-
-                if (keyState.IsKeyDown(Keys.LeftControl)) posPlayer.Y += 10;
-                if (keyState.IsKeyDown(Keys.LeftShift)) posPlayer.Y -= 10;
-
-
-                /*
-                if (keyState.IsKeyDown(Keys.PageDown))
-                {
-                    if (!keyDown[(int)Keys.PageDown])
-                        scene.current_subset++;
-                    keyDown[(int)Keys.PageDown] = true;
-                }
-                else
-                    keyDown[(int)Keys.PageDown] = false;
-
-                if (keyState.IsKeyDown(Keys.PageUp))
-                {
-                    if (!keyDown[(int)Keys.PageUp])
-                        scene.current_subset--;
-                    keyDown[(int)Keys.PageUp] = true;
-                }
-                else
-                    keyDown[(int)Keys.PageUp] = false;
-
-
-                if (scene.current_subset < 0)
-                    scene.current_subset = 0;
-                else
-                if (scene.current_subset > scene.cant_subsets - 1)
-                    scene.current_subset = scene.cant_subsets - 1;
-                */
-
-
-                if (keyState.IsKeyDown(Keys.PageDown))
-                {
-                    if (!keyDown[(int)Keys.PageDown] && scene.current_model < scene.cant_modelos - 1)
-                    {
-                        scene.current_model++;
-                        posPlayer = scene.modelos[scene.current_model].origin - new Vector3(100, 0, 100);
-                    }
-                    keyDown[(int)Keys.PageDown] = true;
-                }
-                else
-                    keyDown[(int)Keys.PageDown] = false;
-
-                if (keyState.IsKeyDown(Keys.PageUp))
-                {
-                    if (!keyDown[(int)Keys.PageUp] && scene.current_model > 0)
-                    {
-                        scene.current_model--;
-                        posPlayer = scene.modelos[scene.current_model].origin - new Vector3(100, 0, 100);
-                    }
-                    keyDown[(int)Keys.PageUp] = true;
-                }
-                else
-                    keyDown[(int)Keys.PageUp] = false;
-
-
-
                 if (keyState.IsKeyDown(Keys.Space))
                 {
                     if (!keyDown[(int)Keys.Space])
@@ -216,34 +180,31 @@ namespace TGC.MonoGame.TP
                 else
                     keyDown[(int)Keys.T] = false;
 
+                player.ProcessInput(elapsed_time);
                 if (fisica)
                 {
-                    Vector3 dir = posPlayer - posAnt;
-                    if (dir.LengthSquared() > 0)
-                    {
-                        dir.Normalize();
-                        float s = scene.intersectSegment(posAnt, posAnt + dir * 30);
-                        if (s < 1000)
-                        {
-                            posPlayer = posAnt;
-                        }
-                    }
-
-                    float t = scene.intersectSegment(posPlayer, posPlayer - new Vector3(0, 100, 0));
-                    if (t < 1000)
-                    {
-                        // toca piso
-                        posPlayer.Y -= t * 100 - 50;
-                    }
-                    else
-                    {
-                        // esta en el aire
-                        float et = (float)gameTime.ElapsedGameTime.TotalSeconds;
-                        posPlayer.Y -= et * 250;
-                    }
-
+                    player.UpdatePhysics(elapsed_time);
                 }
-                View = Matrix.CreateLookAt(posPlayer, posPlayer + viewDir, new Vector3(0, 1, 0));
+
+                enemigo.UpdatePhysics(elapsed_time);
+
+                // animo al jugador
+                /*
+                if ((posPlayer-posAnt).LengthSquared()>0)
+                {
+                    model.setCurrentAnimation(5);
+                }
+                else
+                {
+                    model.setCurrentAnimation(6);
+                }
+                */
+
+
+                // camara primera persona
+                View = Matrix.CreateLookAt(player.Position, player.Position + player.Direction, new Vector3(0, 1, 0));
+
+                 //View = Matrix.CreateLookAt(posPlayer-viewDir*400+new Vector3(0,100,0), posPlayer , new Vector3(0, 1, 0));
             }
 
             base.Update(gameTime);
@@ -265,6 +226,13 @@ namespace TGC.MonoGame.TP
 			GraphicsDevice.RasterizerState = rasterizerState;
 			*/
 
+            if (ver_modelo)
+            {
+                // modelo animado
+                SkinnedModelEffect.Parameters["ModelTexture"].SetValue(CharacterTexture);
+                DrawSkinnedModel(ModelInstance, gameTime);
+            }
+            else
             if (ver_mesh)
             {
                 // mesh
@@ -275,18 +243,89 @@ namespace TGC.MonoGame.TP
             {
                 // escenario
                 scene.Draw(Matrix.Identity, View, Projection);
+
+                // modelo animado
+                ModelInstance.Transformation = CalcularMatrizOrientacion(0.5f, enemigo.Position- new Vector3(0, 50, 0), -enemigo.Direction);
+                SkinnedModelEffect.Parameters["ModelTexture"].SetValue(CharacterTexture);
+                DrawSkinnedModel(ModelInstance, gameTime);
+
+
             }
 
             //float t = scene.intersectSegment(posPlayer, posPlayer - new Vector3(0, 1000, 0))*1000;
             spriteBatch.Begin();
             //spriteBatch.DrawString(font, "Subset:"+scene.current_subset+
             //"  " + scene.subset[scene.current_subset].image_name, new Vector2(10, 10), Color.YellowGreen);
-            spriteBatch.DrawString(font, "X:" + posPlayer.X + "Y:" + posPlayer.Y     + "  Z:" +posPlayer.Z, new Vector2(10, 10), Color.YellowGreen);
+
+            //spriteBatch.DrawString(font, "tras" + dist, new Vector2(10, 10), Color.YellowGreen);
             
             spriteBatch.End();
  
             base.Draw(gameTime);
         }
+
+        void DrawSkinnedModel(SkinnedModelInstance skinnedModelInstance, GameTime gameTime)
+        {
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+            SkinnedModelEffect.CurrentTechnique = SkinnedModelEffect.Techniques["BasicColorDrawing"];
+
+            SkinnedModelEffect.Parameters["World"].SetValue(skinnedModelInstance.Transformation);
+            SkinnedModelEffect.Parameters["View"].SetValue(View);
+            SkinnedModelEffect.Parameters["Projection"].SetValue(Projection);
+
+            foreach (var meshInstance in skinnedModelInstance.MeshInstances)
+            {
+                SkinnedModelEffect.Parameters["gBonesOffsets"].SetValue(meshInstance.BonesOffsets);
+                //SkinnedModelEffect.Parameters["ModelTexture"].SetValue(meshInstance.Mesh.Texture);
+
+                GraphicsDevice.SetVertexBuffer(meshInstance.Mesh.VertexBuffer);
+                GraphicsDevice.Indices = meshInstance.Mesh.IndexBuffer;
+
+                foreach (EffectPass pass in SkinnedModelEffect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    GraphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, meshInstance.Mesh.FaceCount);
+                }
+
+            }
+        }
+
+        public Matrix CalcularMatrizOrientacion(float scale, Vector3 pos, Vector3 Dir)
+        {
+            var matWorld = Matrix.CreateScale(scale) * Matrix.CreateRotationY(MathF.PI);
+            Vector3 U = Vector3.Cross(new Vector3(0, 1, 0), Dir);
+            U.Normalize();
+            Vector3 V = Vector3.Cross(Dir,U);
+            V.Normalize();
+
+            Matrix Orientacion = new Matrix();
+            Orientacion.M11 = U.X;
+            Orientacion.M12 = U.Y;
+            Orientacion.M13 = U.Z;
+            Orientacion.M14 = 0;
+
+            Orientacion.M21 = V.X;
+            Orientacion.M22 = V.Y;
+            Orientacion.M23 = V.Z;
+            Orientacion.M24 = 0;
+
+            Orientacion.M31 = Dir.X;
+            Orientacion.M32 = Dir.Y;
+            Orientacion.M33 = Dir.Z;
+            Orientacion.M34 = 0;
+
+            Orientacion.M41 = 0;
+            Orientacion.M42 = 0;
+            Orientacion.M43 = 0;
+            Orientacion.M44 = 1;
+            matWorld = matWorld * Orientacion;
+
+            // traslado
+            matWorld = matWorld * Matrix.CreateTranslation(pos);
+            return matWorld;
+        }
+
+
 
         /// <summary>
         ///     Libero los recursos que se cargaron en el juego.

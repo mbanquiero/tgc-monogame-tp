@@ -11,6 +11,9 @@ float4x4 World;
 float4x4 View;
 float4x4 Projection;
 
+float renderamt = 1;
+float3 rendercolor = float3(1, 1, 1);
+
 struct VertexShaderInput
 {
 	float4 Position : POSITION0;
@@ -67,7 +70,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	float3 LightPos = float3(1000, 5000, 1000);
 	float3 L = normalize(LightPos - input.WorldPos);
 	float3 N = normalize(input.Normal);
-	float kd = abs(dot(N, L)) + 0.1;
+	float kd = abs(dot(N, L))*0.6 + 0.3;
 	float u = input.TextureCoordinate.x;
 	float v = input.TextureCoordinate.y;
 	float4 clr = tex2D(textureSampler, float2(u,v));
@@ -75,6 +78,16 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	return clr ;
 }
 
+float4 SpritePS(VertexShaderOutput input) : COLOR
+{
+	float4 clr = tex2D(textureSampler, input.TextureCoordinate);
+	return float4(clr.rgb * rendercolor * renderamt, 1);	// float4(1, 0, 1, 1);
+}
+
+float4 ColorPS(VertexShaderOutput input) : COLOR
+{
+	return float4(1, 0, 1, 1);
+}
 
 technique TextureDrawing
 {
@@ -85,4 +98,22 @@ technique TextureDrawing
 	}
 };
 
+
+technique SpriteDrawing
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL MainVS();
+		PixelShader = compile PS_SHADERMODEL SpritePS();
+	}
+};
+
+technique ColorDrawing
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL MainVS();
+		PixelShader = compile PS_SHADERMODEL ColorPS();
+	}
+};
 

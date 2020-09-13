@@ -32,6 +32,8 @@ namespace TGC.MonoGame.TP
 		public ContentManager Content;
 		public VertexBuffer VertexBuffer;
 
+		public static CDebugBox debug_box = null;
+
 
 		public CMdlMesh(string fname, GraphicsDevice p_device, ContentManager p_content, string p_folder)
 		{
@@ -40,6 +42,9 @@ namespace TGC.MonoGame.TP
 			device = p_device;
 			Content = p_content;
 			matWorld = Matrix.Identity;
+
+			if (debug_box == null)
+				debug_box = new CDebugBox(p_device);
 
 			var fp = new FileStream(folder+"models//"+fname+".csm", FileMode.Open, FileAccess.Read);
 			var arrayByte = new byte[(int)fp.Length];
@@ -87,10 +92,10 @@ namespace TGC.MonoGame.TP
 				};
 				*/
 
-				var x = vertices[i].Position.X = -BitConverter.ToSingle(arrayByte, t); t += 4;
+				var x = vertices[i].Position.X = BitConverter.ToSingle(arrayByte, t); t += 4;
 				var z = vertices[i].Position.Z = BitConverter.ToSingle(arrayByte, t); t += 4;
 				var y = vertices[i].Position.Y = BitConverter.ToSingle(arrayByte, t); t += 4;
-				vertices[i].Normal.X = -BitConverter.ToSingle(arrayByte, t); t += 4;
+				vertices[i].Normal.X = BitConverter.ToSingle(arrayByte, t); t += 4;
 				vertices[i].Normal.Z = BitConverter.ToSingle(arrayByte, t); t += 4;
 				vertices[i].Normal.Y = BitConverter.ToSingle(arrayByte, t); t += 4;
 				vertices[i].TextureCoordinate.X = BitConverter.ToSingle(arrayByte, t); t += 4;
@@ -166,9 +171,12 @@ namespace TGC.MonoGame.TP
 						pass.Apply();
 						graphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_items);
 					}
-					pos += cant_items;
+					pos += cant_items*3;
 				}
 			}
+
+			// dibujo el aa bb box de debug
+			//debug_box.Draw(device, p_min, p_max, Effect, World,View, Proj);
 		}
 	}
 

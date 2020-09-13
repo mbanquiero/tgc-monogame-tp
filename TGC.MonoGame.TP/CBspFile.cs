@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Xml;
 
 namespace TGC.MonoGame.TP
 {
@@ -51,16 +52,22 @@ namespace TGC.MonoGame.TP
 
 		public Matrix world()
         {
+
+			Matrix pitch = Matrix.CreateRotationZ(-angles.X);
+			Matrix yaw = Matrix.CreateRotationY(-angles.Y);
+			Matrix roll = Matrix.CreateRotationX(-angles.Z);
+
+			Matrix mat_world = pitch *yaw * roll * Matrix.CreateTranslation(origin);
+			/*
 			Matrix T = new Matrix( new Vector4(1, 0, 0, 0),
 								   new Vector4(0, 0, 1, 0),
 								   new Vector4(0, 1, 0, 0),
 								   new Vector4(0, 0, 0, 1));
-		
-			Matrix pitch = Matrix.CreateRotationX(-angles.X);
+			Matrix pitch = Matrix.CreateRotationX(angles.X);
 			Matrix yaw = Matrix.CreateRotationZ(angles.Y);
-			Matrix roll = Matrix.CreateRotationY(-angles.Z);
-
+			Matrix roll = Matrix.CreateRotationY(angles.Z);
 			Matrix mat_world = T * pitch * yaw * roll * T * Matrix.CreateTranslation(origin);
+			*/
 			return mat_world;
 		}
 
@@ -118,6 +125,7 @@ namespace TGC.MonoGame.TP
 		public VertexBuffer VertexBuffer;
 		public Effect Effect;
 		public Effect EffectMesh;
+		public VertexBuffer spriteVertexBuffer;		
 
 
 		public int current_subset = 6;
@@ -131,6 +139,11 @@ namespace TGC.MonoGame.TP
 
 		// meshes
 		public CMeshPool mesh_pool = new CMeshPool();
+
+		// sprites
+		public const int MAX_SPRITES = 4096;
+		public int cant_sprites = 0;
+		public CSprite []sprites = new CSprite[MAX_SPRITES];
 
 		// modelos
 		public const int MAX_MODELOS = 4096;
@@ -151,7 +164,7 @@ namespace TGC.MonoGame.TP
 			Content = p_content;
 			Effect = Content.Load<Effect>("Effects/PhongShader");
 			EffectMesh = Content.Load<Effect>("Effects/BasicShader");
-
+		
 			var fp = new FileStream(map_folder+fname+".tgc", FileMode.Open, FileAccess.Read);
 			var arrayByte = new byte[(int)fp.Length];
 			fp.Read(arrayByte, 0, (int)fp.Length);
@@ -160,6 +173,8 @@ namespace TGC.MonoGame.TP
 			texture_default = Content.Load<Texture2D>("Textures/barrier");
 			// cargo las entidades
 			cargarEntidades(fname);
+
+			createSpriteQuad();
 
 
 		}
@@ -298,13 +313,6 @@ namespace TGC.MonoGame.TP
 				N.Normalize();
 				vertices[3 * i].Normal = vertices[3 * i + 1].Normal = vertices[3 * i + 2].Normal = N;
 
-				/*
-				faces[i] = new bsp_triangle();
-				faces[i].v[0] = v0;
-				faces[i].v[1] = v1;
-				faces[i].v[2] = v2;
-				*/
-
 			}
 
 
@@ -373,17 +381,43 @@ namespace TGC.MonoGame.TP
 				data[pixel].A = (byte)(arrayByte[t++] + 128);
 			}
 			lightmap.SetData(data);
+		}
+
+		public void createSpriteQuad()
+        {
+			// crea un quad unitario para 
+			VertexPositionTexture[] vertices = new VertexPositionTexture[6];
+			vertices[0].Position.X = -1;
+			vertices[0].Position.Y = -1;
+			vertices[0].Position.Z =  0;
+			vertices[0].TextureCoordinate.X = 0;
+			vertices[0].TextureCoordinate.Y = 0;
+
+			vertices[1].Position.X = -1;
+			vertices[1].Position.Y = 1;
+			vertices[1].Position.Z = 0;
+			vertices[1].TextureCoordinate.X = 0;
+			vertices[1].TextureCoordinate.Y = 1;
+
+			vertices[2].Position.X = 1;
+			vertices[2].Position.Y = -1;
+			vertices[2].Position.Z = 0;
+			vertices[2].TextureCoordinate.X = 1;
+			vertices[2].TextureCoordinate.Y = 0;
+
+			vertices[3] = vertices[1];
+			vertices[4] = vertices[2];
+
+			vertices[5].Position.X = 1;
+			vertices[5].Position.Y = 1;
+			vertices[5].Position.Z = 0;
+			vertices[5].TextureCoordinate.X = 1;
+			vertices[5].TextureCoordinate.Y = 1;
+
+			spriteVertexBuffer = new VertexBuffer(device, VertexPositionTexture.VertexDeclaration, 6, BufferUsage.WriteOnly);
+			spriteVertexBuffer.SetData(vertices);
 
 
-			// modelos
-			/*
-			cant_modelos = 1;
-			modelos = new bsp_model[cant_modelos];
-			modelos[0] = new bsp_model();
-			modelos[0].mesh = new CMdlMesh("props_junk\\TrashBin01a", device, Content, cs_folder);
-			modelos[0].origin = new Vector3(5330, -840 , 7182);
-			modelos[0].angles = new Vector3(0, 0, 0);
-			*/
 		}
 
 		public Vector3 parseVector3(string s)
@@ -414,6 +448,21 @@ namespace TGC.MonoGame.TP
 			return rta * MathF.PI/180.0f;
 		}
 
+		public Vector3 parseColor(string s)
+		{
+			// "245 255 236"
+			Vector3 rta = new Vector3(0, 0, 0);
+			string[] n = s.Split(' ');
+			if (n.Length == 3)
+			{
+				rta.X = float.Parse(n[0], CultureInfo.InvariantCulture.NumberFormat);
+				rta.Y = float.Parse(n[1], CultureInfo.InvariantCulture.NumberFormat);
+				rta.Z = float.Parse(n[2], CultureInfo.InvariantCulture.NumberFormat);
+			}
+			return rta * (1/255.0f);
+		}
+
+
 		public void cargarEntidades(string fname)
         {
 			string lumpname = map_folder + fname + ".ent";
@@ -425,6 +474,9 @@ namespace TGC.MonoGame.TP
 			string key="", value="";
 			Vector3 origin = new Vector3(0, 0, 0);
 			Vector3 angles = new Vector3(0, 0, 0);
+			Vector3 rendercolor = new Vector3(1, 1, 1);
+			float renderamt = 1;
+			float scale = 0;
 			string model = "" , classname="";
 			reader = new StreamReader(lumpname);
 			do
@@ -457,7 +509,7 @@ namespace TGC.MonoGame.TP
 								if (key == "origin")
 									origin = parseVector3(value);
 								else
-								if (key == "model")
+								if (key == "model" || key== "RopeMaterial")
 									model = value;
 								else
 								if (key == "classname")
@@ -465,6 +517,15 @@ namespace TGC.MonoGame.TP
 								else
 								if (key == "angles")
 									angles = parseOrient(value);
+								else
+								if (key == "scale")
+									scale = float.Parse(value, CultureInfo.InvariantCulture.NumberFormat);
+								else
+								if (key == "rendercolor")
+									rendercolor = parseColor(value);
+								else
+								if (key == "renderamt")
+									renderamt = float.Parse(value, CultureInfo.InvariantCulture.NumberFormat) / 255.0f;
 								break;
 						}
 						break;
@@ -472,14 +533,32 @@ namespace TGC.MonoGame.TP
 					case '}':
 						state = 0;
 						// fin de entidad
-						if(model.Contains(".mdl") && cant_modelos< MAX_MODELOS-1)
-                        {
-							
+						if (model.Contains(".mdl") && cant_modelos < MAX_MODELOS - 1)
+						{
+
 							model = model.Replace("models/", "").Replace(".mdl", "");
 							var p = modelos[cant_modelos++] = new bsp_model();
 							p.origin = origin;
 							p.angles = angles;
 							p.nro_mesh = mesh_pool.insert(model, device, Content, cs_folder);
+							Debug.WriteLine(model + " " + origin + "  " + angles);
+
+						}
+						else
+						if ((classname == "env_sprite" || classname == "xkeyframe_rope") 
+								&& cant_sprites < MAX_SPRITES- 1)
+						{
+							if(classname == "keyframe_rope")
+                            {
+								rendercolor = new Vector3(1, 1, 1);
+								renderamt = 1;
+							}
+							model = model.Replace("materials/", "").Replace(".vmt", "");
+							var p = sprites[cant_sprites++] = new CSprite(model,device,Content);
+							p.origin = origin;
+							p.scale = scale;
+							p.renderamt = renderamt;
+							p.rendercolor = rendercolor;
 							Debug.WriteLine(model + " " + origin + "  " + angles);
 
 						}
@@ -544,6 +623,26 @@ namespace TGC.MonoGame.TP
 				CMdlMesh p_mesh = mesh_pool.meshes[modelos[i].nro_mesh];
 				p_mesh.Draw(device, EffectMesh, world, View, Proj);
 			}
+
+			// env sprites
+			EffectMesh.CurrentTechnique = EffectMesh.Techniques["SpriteDrawing"];
+			var ant_blend_state = device.BlendState;
+			device.BlendState = BlendState.Additive;
+			var ant_z_state = device.DepthStencilState;
+			var depthState = new DepthStencilState();
+			depthState.DepthBufferEnable = true;
+			depthState.DepthBufferWriteEnable = false;
+			device.DepthStencilState = depthState;
+
+			EffectMesh.Parameters["View"].SetValue(Matrix.Identity);
+			EffectMesh.Parameters["Projection"].SetValue(Proj);
+			for (var i=0;i<cant_sprites;++i)
+            {
+				sprites[i].Draw(spriteVertexBuffer , EffectMesh , View);
+            }
+			device.BlendState = ant_blend_state;
+			device.DepthStencilState = ant_z_state;
+
 		}
 
 
