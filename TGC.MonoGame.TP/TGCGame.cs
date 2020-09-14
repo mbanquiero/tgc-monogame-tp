@@ -30,8 +30,9 @@ namespace TGC.MonoGame.TP
         public float farClipPlane = 50000;
         Matrix Projection, View;
 
+        public const int MAX_ENEMIGOS = 20;
         public CPlayer player;
-        public CEnemy enemigo;
+        public CEnemy[] enemigo = new CEnemy[MAX_ENEMIGOS];
 
         public Effect EffectMesh;
         public CBspFile scene;
@@ -40,7 +41,7 @@ namespace TGC.MonoGame.TP
         // skinned mesh
         public SkinnedModel CharacterMesh;
         public SkinnedModelAnimation AnimationIdle;
-        public SkinnedModelInstance ModelInstance;
+        public SkinnedModelInstance []ModelInstance = new SkinnedModelInstance[MAX_ENEMIGOS];
         public Texture2D CharacterTexture;
         public Effect SkinnedModelEffect;
 
@@ -95,11 +96,16 @@ namespace TGC.MonoGame.TP
             AnimationIdle = new SkinnedModelAnimation();
             AnimationIdle.FilePath = SkinnedMeshFolder + "Female Tough Walk.dae";
             AnimationIdle.Load();
-            ModelInstance = new SkinnedModelInstance();
-            ModelInstance.Mesh = CharacterMesh;
-            ModelInstance.SpeedTransitionSecond = 0.4f;
-            ModelInstance.Initialize();
-            ModelInstance.SetAnimation(AnimationIdle);
+
+            Random rnd = new Random();
+            for (int i = 0; i < MAX_ENEMIGOS; ++i)
+            {
+                ModelInstance[i] = new SkinnedModelInstance();
+                ModelInstance[i].Mesh = CharacterMesh;
+                ModelInstance[i].SpeedTransitionSecond = 0.4f;
+                ModelInstance[i].Initialize();
+                ModelInstance[i].SetAnimation(AnimationIdle);
+            }
             CharacterTexture = CTextureLoader.Load(GraphicsDevice, SkinnedMeshFolder+"zombie_diffuse.png");
             SkinnedModelEffect = Content.Load<Effect>("Effects/SkinnedModelEffect");
 
@@ -119,13 +125,23 @@ namespace TGC.MonoGame.TP
             {
                 scene = new CBspFile(map_name, GraphicsDevice, Content);
                 player = new CPlayer(scene);
-                enemigo = new CEnemy(scene);
+
+                for (int i = 0; i < MAX_ENEMIGOS; ++i)
+                {
+                    enemigo[i] = new CEnemy(scene);
+                    enemigo[i].Position = new Vector3(rnd.Next((int)scene.p_min.X, (int)scene.p_max.X), 
+                                    scene.p_max.Y, rnd.Next((int)scene.p_min.Z, (int)scene.p_max.Z));
+                    enemigo[i].Position = new Vector3(7242+ rnd.Next(-300,300), -493, 6746+ rnd.Next(-300, 300));
+
+                    float an = rnd.Next(0, 360)*MathF.PI/180.0f;
+                    enemigo[i].Direction = new Vector3(MathF.Cos(an), 0, MathF.Sin(an));
+                }
 
                 player.Position = scene.cg;
                 player.Direction = new Vector3(0,0,1);
 
-                enemigo.Position = new Vector3(7242, -493, 6746);
-                enemigo.Direction = new Vector3(0, 0, -1);
+                enemigo[0].Position = new Vector3(7242, -493, 6746);
+                enemigo[0].Direction = new Vector3(0, 0, -1);
 
             }
 
@@ -141,11 +157,14 @@ namespace TGC.MonoGame.TP
 
             if(ver_modelo)
             {
-                ModelInstance.Transformation = Matrix.CreateScale(3.0f) * Matrix.CreateRotationY(2.5f * (float)gameTime.TotalGameTime.TotalSeconds);
+                ModelInstance[0].Transformation = Matrix.CreateScale(3.0f) * Matrix.CreateRotationY(2.5f * (float)gameTime.TotalGameTime.TotalSeconds);
             }
 
-            ModelInstance.UpdateBoneAnimations(gameTime);
-            ModelInstance.UpdateBones(gameTime);
+            for(int i=0;i<MAX_ENEMIGOS;++i)
+            {
+                ModelInstance[i].UpdateBoneAnimations(gameTime);
+                ModelInstance[i].UpdateBones(gameTime);
+            }
 
             if (ver_mesh || ver_modelo)
             {
@@ -186,7 +205,8 @@ namespace TGC.MonoGame.TP
                     player.UpdatePhysics(elapsed_time);
                 }
 
-                enemigo.UpdatePhysics(elapsed_time);
+                for (int i = 0; i < MAX_ENEMIGOS; ++i)
+                    enemigo[i].UpdatePhysics(elapsed_time);
 
                 // animo al jugador
                 /*
@@ -230,7 +250,7 @@ namespace TGC.MonoGame.TP
             {
                 // modelo animado
                 SkinnedModelEffect.Parameters["ModelTexture"].SetValue(CharacterTexture);
-                DrawSkinnedModel(ModelInstance, gameTime);
+                DrawSkinnedModel(ModelInstance[0], gameTime);
             }
             else
             if (ver_mesh)
@@ -245,11 +265,12 @@ namespace TGC.MonoGame.TP
                 scene.Draw(Matrix.Identity, View, Projection);
 
                 // modelo animado
-                ModelInstance.Transformation = CalcularMatrizOrientacion(0.5f, enemigo.Position- new Vector3(0, 50, 0), -enemigo.Direction);
-                SkinnedModelEffect.Parameters["ModelTexture"].SetValue(CharacterTexture);
-                DrawSkinnedModel(ModelInstance, gameTime);
-
-
+                for (int i = 0; i < MAX_ENEMIGOS; ++i)
+                {
+                    ModelInstance[i].Transformation = CalcularMatrizOrientacion(0.5f, enemigo[i].Position - new Vector3(0, 50, 0), -enemigo[i].Direction);
+                    SkinnedModelEffect.Parameters["ModelTexture"].SetValue(CharacterTexture);
+                    DrawSkinnedModel(ModelInstance[i], gameTime);
+                }
             }
 
             //float t = scene.intersectSegment(posPlayer, posPlayer - new Vector3(0, 1000, 0))*1000;

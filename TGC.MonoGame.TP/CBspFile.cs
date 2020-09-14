@@ -33,6 +33,13 @@ namespace TGC.MonoGame.TP
 	public class bsp_triangle
 	{
 		public Vector3[] v = new Vector3[3];
+		// auxiliares
+		public Vector3 pmin;
+		public Vector3 pmax;
+		// precomputed data: interseccion ray - tri
+		public Vector3 e1;
+		public Vector3 e2;
+
 	}
 
 	public struct bsp_subset
@@ -134,8 +141,10 @@ namespace TGC.MonoGame.TP
 
 
 		// geometria
+		//todo: cambiar nombre por face3d
 		public int cant_faces;
 		public bsp_triangle[] faces;
+		public KDTree kd_tree;
 
 		// meshes
 		public CMeshPool mesh_pool = new CMeshPool();
@@ -173,9 +182,11 @@ namespace TGC.MonoGame.TP
 			texture_default = Content.Load<Texture2D>("Textures/barrier");
 			// cargo las entidades
 			cargarEntidades(fname);
-
 			createSpriteQuad();
 
+			// armo el kdtree
+			kd_tree = new KDTree(cant_faces, faces);
+			kd_tree.createKDTree();
 
 		}
 
@@ -649,6 +660,8 @@ namespace TGC.MonoGame.TP
 		// experimento ray - tracing
 		public float intersectSegment(Vector3 p, Vector3 q)
 		{
+
+			/*
 			float min_t = 10000;
 			Vector3 uvw = new Vector3();
 			Vector3 col = new Vector3();
@@ -661,6 +674,31 @@ namespace TGC.MonoGame.TP
 						min_t = t;
 				}
 			}
+			return min_t;
+			*/
+			
+
+			// test kd tree
+			float min_t = 10000;
+			Vector3 dir = q - p;
+			float dist = dir.Length();
+			dir.Normalize();
+			if(kd_tree.ray_intersects(p, dir,out ip_data Ip))
+            {
+				float t = Ip.t / dist;
+				if (t <= 1)
+					min_t = t;
+				/*
+				if(min_t2<=1)
+                {
+					if(MathF.Abs(min_t - min_t2)>0.001f)
+                    {
+						int bp = 1;
+                    }
+                }
+				*/
+            }
+
 			return min_t;
 		}
 
