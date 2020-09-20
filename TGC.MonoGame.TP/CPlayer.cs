@@ -43,10 +43,15 @@ namespace TGC.MonoGame.TP
 
             PrevPosition = Position;
             var keyState = Keyboard.GetState();
-            if (keyState.IsKeyDown(Keys.Up)) Position+= Direction * 10;
-            if (keyState.IsKeyDown(Keys.Down)) Position-= Direction * 10;
-            if (keyState.IsKeyDown(Keys.LeftControl)) Position.Y += 10;
-            if (keyState.IsKeyDown(Keys.LeftShift)) Position.Y -= 10;
+            if (!keyState.IsKeyDown(Keys.LeftShift))
+            {
+
+                if (keyState.IsKeyDown(Keys.Up)) Position += Direction * 10;
+                if (keyState.IsKeyDown(Keys.Down)) Position -= Direction * 10;
+                if (keyState.IsKeyDown(Keys.LeftControl)) Position.Y += 10;
+                if (keyState.IsKeyDown(Keys.LeftShift)) Position.Y -= 10;
+
+            }
         }
 
         public virtual void UpdatePhysics(float elapsed_time)
@@ -57,7 +62,7 @@ namespace TGC.MonoGame.TP
             if (dir.LengthSquared() > 0)
             {
                 dir.Normalize();
-                float s = scene.intersectSegment(PrevPosition, PrevPosition + dir * 30);
+                float s = scene.intersectSegment(PrevPosition, PrevPosition + dir * 30,out ip_data ip0);
                 if (s < 1000)
                 {
                     Position = PrevPosition;
@@ -65,7 +70,15 @@ namespace TGC.MonoGame.TP
                 }
             }
 
-            float t = scene.intersectSegment(Position, Position - new Vector3(0, 100, 0));
+            /*
+            // performacne
+            float xxx = 0;
+            for (var i = 0; i < 2000; ++i)
+            {
+                xxx += scene.intersectSegment(Position, Position - new Vector3(0, 100, 0));
+            }
+            */
+            float t = scene.intersectSegment(Position, Position - new Vector3(0, 100, 0), out ip_data ip1);
             if (t < 1000)
             {
                 // toca piso

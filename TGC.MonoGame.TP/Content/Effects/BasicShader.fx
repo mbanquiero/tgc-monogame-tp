@@ -67,13 +67,15 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
+	float u = input.TextureCoordinate.x;
+	float v = input.TextureCoordinate.y;
+	float4 clr = tex2D(textureSampler, float2(u,v));
+	if (clr.a < 0.05)
+		discard;
 	float3 LightPos = float3(1000, 5000, 1000);
 	float3 L = normalize(LightPos - input.WorldPos);
 	float3 N = normalize(input.Normal);
 	float kd = abs(dot(N, L))*0.6 + 0.3;
-	float u = input.TextureCoordinate.x;
-	float v = input.TextureCoordinate.y;
-	float4 clr = tex2D(textureSampler, float2(u,v));
 	clr.rgb *= kd;
 	return clr ;
 }

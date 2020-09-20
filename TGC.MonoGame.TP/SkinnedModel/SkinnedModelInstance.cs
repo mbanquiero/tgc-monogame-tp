@@ -1,7 +1,9 @@
 ﻿using Assimp.Configs;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace TGC.MonoGame.TP
@@ -11,18 +13,18 @@ namespace TGC.MonoGame.TP
         public const uint MaxBones = 100;
         public const uint FramePerSecond = 30;
 
-        public SkinnedModel Mesh { get; set; }
-        public Matrix Transformation { get; set; }
-        public SkinnedModelAnimation Animation { get; set; }
-
+        public SkinnedModel Mesh;
+        public Matrix Transformation;
+        public SkinnedModelAnimation Animation;
         public List<MeshInstance> MeshInstances;
         public List<BoneAnimationInstance> BoneAnimationInstances;
-
-        public SkinnedModelAnimation PreviousAnimation { get; set; }
+        public SkinnedModelAnimation PreviousAnimation;
         public List<BoneAnimationInstance> PreviousBoneAnimationInstances;
 
-        public TimeSpan TimeAnimationChanged;
         public float SpeedTransitionSecond { get; set; } = 1.0f;
+
+        public float TimeAnimationChanged;
+        public float Time = 0;
 
         public struct BoneInstance
         {
@@ -73,7 +75,7 @@ namespace TGC.MonoGame.TP
             }
         }
 
-        public Matrix GetBoneAnimationTransform(SkinnedModelAnimation.BoneAnimation boneAnimation, GameTime gt)
+        public Matrix GetBoneAnimationTransform(SkinnedModelAnimation.BoneAnimation boneAnimation, float time)
         {
             if (!boneAnimation.IsAnimate && boneAnimation.Parent != null)
             {
@@ -83,24 +85,24 @@ namespace TGC.MonoGame.TP
             Matrix transform = Matrix.Identity;
             if (boneAnimation.Scales.Any())
             {
-                int frameIndex = (int)(gt.TotalGameTime.TotalSeconds * FramePerSecond) % boneAnimation.Scales.Count;
+                int frameIndex = (int)(time * FramePerSecond) % boneAnimation.Scales.Count;
                 transform *= Matrix.CreateScale(boneAnimation.Scales[frameIndex]);
             }
             if (boneAnimation.Rotations.Any())
             {
-                int frameIndex = (int)(gt.TotalGameTime.TotalSeconds * FramePerSecond) % boneAnimation.Rotations.Count;
+                int frameIndex = (int)(time * FramePerSecond) % boneAnimation.Rotations.Count;
                 transform *= Matrix.CreateFromQuaternion(boneAnimation.Rotations[frameIndex]);
             }
             if (boneAnimation.Positions.Any())
             {
-                int frameIndex = (int)(gt.TotalGameTime.TotalSeconds * FramePerSecond) % boneAnimation.Positions.Count;
+                int frameIndex = (int)(time * FramePerSecond) % boneAnimation.Positions.Count;
                 transform *= Matrix.CreateTranslation(boneAnimation.Positions[frameIndex]);
             }
 
             return transform;
         }
 
-        void UpdateBoneAnimationInstance(BoneAnimationInstance boneAnimationInstance, GameTime gameTime)
+        void UpdateBoneAnimationInstance(BoneAnimationInstance boneAnimationInstance)
         {
             if(boneAnimationInstance.Updated)
             {
@@ -110,14 +112,13 @@ namespace TGC.MonoGame.TP
             Matrix parentTransform = Matrix.Identity;
             if(boneAnimationInstance.Parent != null)
             {
-                UpdateBoneAnimationInstance(boneAnimationInstance.Parent, gameTime);
+                UpdateBoneAnimationInstance(boneAnimationInstance.Parent);
                 parentTransform = boneAnimationInstance.Parent.Transform;
             }
-
-            boneAnimationInstance.Transform = GetBoneAnimationTransform(boneAnimationInstance.BoneAnimation, gameTime) * boneAnimationInstance.AdditionalTransform * parentTransform;
+            boneAnimationInstance.Transform = GetBoneAnimationTransform(boneAnimationInstance.BoneAnimation, Time) * boneAnimationInstance.AdditionalTransform * parentTransform;
         }
 
-        public void UpdateBoneAnimations(GameTime gameTime)
+        public void UpdateBoneAnimations()
         {
             foreach (var boneAnimationInstance in BoneAnimationInstances)
             {
@@ -126,40 +127,47 @@ namespace TGC.MonoGame.TP
 
             foreach (var boneAnimationInstance in BoneAnimationInstances)
             {
-                UpdateBoneAnimationInstance(boneAnimationInstance, gameTime);
+                UpdateBoneAnimationInstance(boneAnimationInstance);
             }
 
             foreach (var boneAnimationInstance in PreviousBoneAnimationInstances)
             {
-                UpdateBoneAnimationInstance(boneAnimationInstance, gameTime);
+                UpdateBoneAnimationInstance(boneAnimationInstance);
             }
         }
 
-        public void UpdateBones(GameTime gameTime)
+        public void UpdateBones()
         {
             foreach (var meshInstance in MeshInstances)
             {
+                // meto un parche para que si no encuentra el boneanimationinstance, al menos use el anterior
+                // no nulo, eso sucede cuando el esqueleto no coincide exacto o le faltan algunas partes de la animacion
+                BoneAnimationInstance temp = null;
                 foreach (var boneInstances in meshInstance.BoneInstances)
-                if(boneInstances.BoneAnimationInstance!=null)
                 {
-                    Matrix transform = boneInstances.BoneAnimationInstance.Transform;
-                    if (boneInstances.BoneAnimationInstance.PreviousBoneAnimationInstance != null)
+                    Matrix transform = boneInstances.BoneAnimationInstance != null ? 
+                            boneInstances.BoneAnimationInstance.Transform : temp!=null ? temp.Transform : Matrix.Identity;
+                    if (boneInstances.BoneAnimationInstance != null && 
+                        boneInstances.BoneAnimationInstance.PreviousBoneAnimationInstance != null)
                     {
-                        float transition = (float)(gameTime.TotalGameTime.TotalSeconds - TimeAnimationChanged.TotalSeconds);
+                        float transition = (float)(Time - TimeAnimationChanged);
                         if(transition < SpeedTransitionSecond)
                         {
                             transform = Matrix.Lerp(boneInstances.BoneAnimationInstance.PreviousBoneAnimationInstance.Transform, boneInstances.BoneAnimationInstance.Transform, transition / SpeedTransitionSecond);
                         }
                     }
                     meshInstance.BonesOffsets[boneInstances.Bone.Index] = boneInstances.Bone.Offset * transform;
+                    if(boneInstances.BoneAnimationInstance != null)
+                        temp = boneInstances.BoneAnimationInstance;
                 }
             }
         }
 
-        public void Update(GameTime gameTime)
+        public void Update(float elapsed_time)
         {
-            UpdateBoneAnimations(gameTime);
-            UpdateBones(gameTime);
+            Time += elapsed_time;
+            UpdateBoneAnimations();
+            UpdateBones();
         }
 
         public BoneAnimationInstance GetBoneAnimationInstance(string name)
@@ -167,12 +175,12 @@ namespace TGC.MonoGame.TP
             return BoneAnimationInstances.FirstOrDefault(ni => ni.BoneAnimation.Name == name);
         }
 
-        public Matrix GetTransform(BoneAnimationInstance boneAnimationInstance, GameTime gameTime)
+        public Matrix GetTransform(BoneAnimationInstance boneAnimationInstance, float time)
         {
             Matrix transform = boneAnimationInstance.Transform;
             if (boneAnimationInstance.PreviousBoneAnimationInstance != null)
             {
-                float transition = (float)(gameTime.TotalGameTime.TotalSeconds - TimeAnimationChanged.TotalSeconds);
+                float transition = (float)(time - TimeAnimationChanged);
                 if (transition < SpeedTransitionSecond)
                 {
                     transform = Matrix.Lerp(boneAnimationInstance.PreviousBoneAnimationInstance.Transform, boneAnimationInstance.Transform, transition / SpeedTransitionSecond);
@@ -186,13 +194,10 @@ namespace TGC.MonoGame.TP
             return name.Replace("mixamorig", "").Replace("_", "").Replace(":", "");
         }
 
-        public void SetAnimation(SkinnedModelAnimation animation, GameTime gameTime = null)
+        public void SetAnimation(SkinnedModelAnimation animation, float time = 0)
         {
-            if(gameTime != null)
-            {
-                TimeAnimationChanged = gameTime.TotalGameTime;
-            }
-
+            TimeAnimationChanged = time;
+            
             PreviousAnimation = animation;
             PreviousBoneAnimationInstances.Clear();
             PreviousBoneAnimationInstances.AddRange(BoneAnimationInstances);
@@ -215,16 +220,49 @@ namespace TGC.MonoGame.TP
                 boneAnimationInstance.Parent = BoneAnimationInstances.FirstOrDefault(ni => ni.BoneAnimation == boneAnimationInstance.BoneAnimation.Parent);
             }
 
-            foreach(var meshInstance in MeshInstances)
+            foreach( var bi in BoneAnimationInstances)
+            {
+                Debug.WriteLine(bi.BoneAnimation.Name);
+            }
+
+            foreach (var meshInstance in MeshInstances)
             {
                 meshInstance.BoneInstances.Clear();
                 foreach(var bone in meshInstance.Mesh.Bones)
                 {
+                    var s = BoneAnimationInstances.FirstOrDefault(
+                            ni => LN(ni.BoneAnimation.Name) == LN(bone.Name));
                     var boneInstance = new BoneInstance();
                     boneInstance.Bone = bone;
-                    boneInstance.BoneAnimationInstance = BoneAnimationInstances.FirstOrDefault(
-                            ni => LN(ni.BoneAnimation.Name) == LN(bone.Name));
+                    boneInstance.BoneAnimationInstance = s;
                     meshInstance.BoneInstances.Add(boneInstance);
+                }
+            }
+        }
+
+
+        public void Draw(GraphicsDevice device, Effect effect, Matrix View , Matrix Projection)
+        {
+            device.DepthStencilState = DepthStencilState.Default;
+            effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
+
+            effect.Parameters["World"].SetValue(Transformation);
+            effect.Parameters["View"].SetValue(View);
+            effect.Parameters["Projection"].SetValue(Projection);
+
+            foreach (var meshInstance in MeshInstances)
+            {
+                effect.Parameters["gBonesOffsets"].SetValue(meshInstance.BonesOffsets);
+                if(meshInstance.Mesh.Texture!=null)
+                    effect.Parameters["ModelTexture"].SetValue(meshInstance.Mesh.Texture);
+
+                device.SetVertexBuffer(meshInstance.Mesh.VertexBuffer);
+                device.Indices = meshInstance.Mesh.IndexBuffer;
+
+                foreach (EffectPass pass in effect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, meshInstance.Mesh.FaceCount);
                 }
             }
         }

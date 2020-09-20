@@ -16,6 +16,20 @@ namespace TGC.MonoGame.TP
 		public int nro_face;
 	};
 
+	public class kd_node
+	{
+		public Vector3 p_min;
+		public Vector3 p_max;
+		public int deep;
+		public float split;
+		public int split_plane;
+		public kd_node p_left, p_right;
+		public int cant_f;
+		public int[] p_list;
+
+	}
+
+
 	public struct st_traverse_node
 	{
 		public float tnear, tfar;
@@ -32,11 +46,11 @@ namespace TGC.MonoGame.TP
 		public int max_deep;
 		public kd_node kd_tree;
 		public int cant_faces;
-		public bsp_triangle[] F;
+		public bsp_face[] F;
 		public Vector3 bb_min;
 		public Vector3 bb_max;
 
-		public KDTree( int p_cant_faces , bsp_triangle []p_faces)
+		public KDTree( int p_cant_faces , bsp_face []p_faces)
         {
 			cant_faces = p_cant_faces;
 			F = p_faces;
@@ -202,7 +216,7 @@ namespace TGC.MonoGame.TP
 
 				for (int i = 0; i < cant_f; ++i)
 				{
-					bsp_triangle f = F[p_list[i]];
+					bsp_face f = F[p_list[i]];
 					if (box_overlap(f.pmin, f.pmax, Lmin, Lmax))
 						list_L[cant_L++] = p_list[i];
 					if (box_overlap(f.pmin, f.pmax, Rmin, Rmax))

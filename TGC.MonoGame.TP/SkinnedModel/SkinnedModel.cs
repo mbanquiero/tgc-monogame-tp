@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
 
 namespace TGC.MonoGame.TP
 {
@@ -11,8 +13,11 @@ namespace TGC.MonoGame.TP
     {
         public GraphicsDevice GraphicsDevice { get; set; }
 
+        public string TexturePath;
         public string FilePath { get; set; }
         public List<Mesh> Meshes { get; set; }
+
+        public bool solo_brazo = false;
 
         class VerticeWeight
         {
@@ -38,7 +43,7 @@ namespace TGC.MonoGame.TP
             public VertexBuffer VertexBuffer { get; set; }
             public IndexBuffer IndexBuffer { get; set; }
 
-            public string TextureFilePath { get; set; }
+            public string TextureFileName { get; set; }
             public Texture2D Texture { get; set; }
 
             public int FaceCount { get; set; }
@@ -64,9 +69,45 @@ namespace TGC.MonoGame.TP
             public Vector4 BoneId;
         }
 
-        public SkinnedModel()
+        public SkinnedModel(bool p_solo_brazo = false)
         {
+            solo_brazo = p_solo_brazo;
+        }
 
+        bool es_brazo(int idbone)
+        {
+            if ((idbone >= 7 && idbone <= 23) || (idbone >= 25 && idbone <= 42))
+                return true;
+            else
+                return false;
+        }
+
+        bool es_brazo(BlendInfo bi)
+        {
+            var idbone = (int)bi.BoneId.X;
+            if (!es_brazo(idbone))
+                return false;
+
+            if (bi.Weight.Y > 0)
+            {
+                idbone = (int)bi.BoneId.Y;
+                if (!es_brazo(idbone))
+                    return false;
+            }
+            if (bi.Weight.Z > 0)
+            {
+                idbone = (int)bi.BoneId.Z;
+                if (!es_brazo(idbone))
+                    return false;
+            }
+            if (bi.Weight.W > 0)
+            {
+                idbone = (int)bi.BoneId.W;
+                if (!es_brazo(idbone))
+                    return false;
+            }
+
+            return true;
         }
 
         public void Initialize()
@@ -104,6 +145,9 @@ namespace TGC.MonoGame.TP
 
                 for (int faceIndex = 0; faceIndex < aMesh.FaceCount; faceIndex++)
                 {
+                    int vi = aMesh.Faces[faceIndex].Indices[0];
+                    BlendInfo bi = GetBlendInfo(VerticeWeights, vi);
+                    if(!solo_brazo || es_brazo(bi))
                     for (int vertexNum = 0; vertexNum < 3; vertexNum++)
                     {
                         int verticeIndice = aMesh.Faces[faceIndex].Indices[vertexNum];
@@ -129,17 +173,21 @@ namespace TGC.MonoGame.TP
                     }
                 }
 
-                mesh.TextureFilePath = aScene.Materials[aMesh.MaterialIndex].TextureDiffuse.FilePath;
+                if (verticesResult.Count>0)
+                {
+                    mesh.TextureFileName = Path.GetFileName(aScene.Materials[aMesh.MaterialIndex].TextureDiffuse.FilePath);
+                    mesh.Texture = CTextureLoader.Load(GraphicsDevice, TexturePath + mesh.TextureFileName);
 
-                mesh.VertexBuffer = new VertexBuffer(GraphicsDevice, typeof(SkinnedModelVertex), verticesResult.Count, BufferUsage.WriteOnly);
-                mesh.VertexBuffer.SetData<SkinnedModelVertex>(verticesResult.Select(v => v.ToVertexPositionNormalTextureBones()).ToArray());
+                    mesh.VertexBuffer = new VertexBuffer(GraphicsDevice, typeof(SkinnedModelVertex), verticesResult.Count, BufferUsage.WriteOnly);
+                    mesh.VertexBuffer.SetData<SkinnedModelVertex>(verticesResult.Select(v => v.ToVertexPositionNormalTextureBones()).ToArray());
 
-                mesh.IndexBuffer = new IndexBuffer(GraphicsDevice, typeof(ushort), indicesResult.Count, BufferUsage.WriteOnly);
-                mesh.IndexBuffer.SetData(indicesResult.ToArray());
+                    mesh.IndexBuffer = new IndexBuffer(GraphicsDevice, typeof(ushort), indicesResult.Count, BufferUsage.WriteOnly);
+                    mesh.IndexBuffer.SetData(indicesResult.ToArray());
 
-                mesh.FaceCount = aMesh.FaceCount;
+                    mesh.FaceCount = aMesh.FaceCount;
 
-                Meshes.Add(mesh);
+                    Meshes.Add(mesh);
+                }
             }
 
         }
@@ -193,5 +241,9 @@ namespace TGC.MonoGame.TP
             result.BoneId = new Vector4(boneId[0], boneId[1], boneId[2], boneId[3]);
             return result;
         }
+
     }
+
+
+
 }

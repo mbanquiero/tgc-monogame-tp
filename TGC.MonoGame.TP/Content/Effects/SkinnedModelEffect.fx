@@ -48,7 +48,7 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 
     float4 skinnedPosition = float4(0.0, 0.0, 0.0, 0.0);
     float4 skinnedNormal = float4(0.0, 0.0, 0.0, 0.0);
-
+    
     int index = input.blendIndices[0];
     skinnedPosition += mul(input.Position, gBonesOffsets[index]) * input.blendWeights[0];
     index = input.blendIndices[1];
@@ -57,7 +57,6 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     skinnedPosition += mul(input.Position, gBonesOffsets[index]) * input.blendWeights[2];
     index = input.blendIndices[3];
     skinnedPosition += mul(input.Position, gBonesOffsets[index]) * input.blendWeights[3];
-
 
     // Project position
     float4 worldPosition = mul(skinnedPosition, World);

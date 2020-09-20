@@ -30,7 +30,7 @@ namespace TGC.MonoGame.TP
 	};
 
 
-	public class bsp_triangle
+	public class bsp_face
 	{
 		public Vector3[] v = new Vector3[3];
 		// auxiliares
@@ -39,7 +39,9 @@ namespace TGC.MonoGame.TP
 		// precomputed data: interseccion ray - tri
 		public Vector3 e1;
 		public Vector3 e2;
-
+		// info adicional
+		public int nro_modelo;
+	
 	}
 
 	public struct bsp_subset
@@ -115,7 +117,7 @@ namespace TGC.MonoGame.TP
 
 
 	public class CBspFile
-    {
+	{
 		public Vector3 p_min;
 		public Vector3 p_max;
 		public Vector3 size;
@@ -132,7 +134,9 @@ namespace TGC.MonoGame.TP
 		public VertexBuffer VertexBuffer;
 		public Effect Effect;
 		public Effect EffectMesh;
-		public VertexBuffer spriteVertexBuffer;		
+		public VertexBuffer spriteVertexBuffer;
+		public VertexBuffer bbVertexBuffer;
+		public int cant_debug_bb = 0;
 
 
 		public int current_subset = 6;
@@ -143,7 +147,11 @@ namespace TGC.MonoGame.TP
 		// geometria
 		//todo: cambiar nombre por face3d
 		public int cant_faces;
-		public bsp_triangle[] faces;
+		public bsp_face[] faces;
+		// globales escena + todos los meshes
+		public int g_cant_faces;
+		public bsp_face[] g_faces;
+
 		public KDTree kd_tree;
 
 		// meshes
@@ -152,7 +160,7 @@ namespace TGC.MonoGame.TP
 		// sprites
 		public const int MAX_SPRITES = 4096;
 		public int cant_sprites = 0;
-		public CSprite []sprites = new CSprite[MAX_SPRITES];
+		public CSprite[] sprites = new CSprite[MAX_SPRITES];
 
 		// modelos
 		public const int MAX_MODELOS = 4096;
@@ -173,8 +181,8 @@ namespace TGC.MonoGame.TP
 			Content = p_content;
 			Effect = Content.Load<Effect>("Effects/PhongShader");
 			EffectMesh = Content.Load<Effect>("Effects/BasicShader");
-		
-			var fp = new FileStream(map_folder+fname+".tgc", FileMode.Open, FileAccess.Read);
+
+			var fp = new FileStream(map_folder + fname + ".tgc", FileMode.Open, FileAccess.Read);
 			var arrayByte = new byte[(int)fp.Length];
 			fp.Read(arrayByte, 0, (int)fp.Length);
 			fp.Close();
@@ -184,8 +192,91 @@ namespace TGC.MonoGame.TP
 			cargarEntidades(fname);
 			createSpriteQuad();
 
+			// experimento kdtree con todo la escena + los mesh
+			g_cant_faces = cant_faces;
+			for (int i = 0; i < cant_modelos; ++i)
+			{
+				g_cant_faces += mesh_pool.meshes[modelos[i].nro_mesh].cant_faces;
+			}
+			g_faces = new bsp_face[g_cant_faces];
+			g_cant_faces = 0;
+			for (var i = 0; i < cant_faces; ++i)
+				g_faces[g_cant_faces++] = faces[i];
+
+
+			VertexPosition[] bb_vertices = new VertexPosition[cant_modelos * 36];
+			var t = 0;
+
+			for (int i = 0; i < cant_modelos; ++i)
+			{
+				var m = mesh_pool.meshes[modelos[i].nro_mesh];
+
+				// todos los triangulos
+				bool todos = true;
+				if (todos)
+				{
+					for (var j = 0; j < m.cant_faces; ++j)
+					{
+						var face = g_faces[g_cant_faces++] = new bsp_face();
+						for (var k = 0; k < 3; ++k)
+						{
+							face.v[k] = Vector3.Transform(m.faces[j].v[k], modelos[i].world());
+							face.nro_modelo = i;
+						}
+					}
+				}
+                else
+                {
+					// solo el bounding box oobb
+					var x0 = m.p_min.X;
+					var y0 = m.p_min.Y;
+					var z0 = m.p_min.Z;
+					var x1 = m.p_max.X;
+					var y1 = m.p_max.Y;
+					var z1 = m.p_max.Z;
+
+					Vector3[] p = new Vector3[8];
+					p[0] = new Vector3(x0, y0, z0);
+					p[1] = new Vector3(x1, y0, z0);
+					p[2] = new Vector3(x1, y1, z0);
+					p[3] = new Vector3(x0, y1, z0);
+
+					p[4] = new Vector3(x0, y0, z1);
+					p[5] = new Vector3(x1, y0, z1);
+					p[6] = new Vector3(x1, y1, z1);
+					p[7] = new Vector3(x0, y1, z1);
+
+					for(var j=0;j<8;++j)
+						p[j] = Vector3.Transform(p[j], modelos[i].world());
+
+
+					int[] ndx = {
+							0,1,2,0,2,3,			// abajo
+							4,5,6,4,6,7,			// arriba
+							1,2,6,1,6,5,			// derecha
+							0,3,7,0,7,4,			// izquierda
+							3,2,6,3,6,7,			// adelante
+							0,1,5,0,5,4				// atras
+						};
+
+					for(int j=0;j<36;++j)
+					{
+						bb_vertices[t++] = new VertexPosition(p[ndx[j]]);
+					}
+				}
+
+			}
+
+			cant_debug_bb = t;
+			if (cant_debug_bb>0)
+			{
+				bbVertexBuffer = new VertexBuffer(device, VertexPosition.VertexDeclaration, t, BufferUsage.WriteOnly);
+				bbVertexBuffer.SetData(bb_vertices);
+			}
+
 			// armo el kdtree
-			kd_tree = new KDTree(cant_faces, faces);
+			//kd_tree = new KDTree(cant_faces, faces);
+			kd_tree = new KDTree(g_cant_faces, g_faces);
 			kd_tree.createKDTree();
 
 		}
@@ -355,7 +446,7 @@ namespace TGC.MonoGame.TP
 			}
 
 			// como mucho hay cant_tri faces a los efectos de colision, anulo las que son TOOLS
-			faces = new bsp_triangle[cant_tri];
+			faces = new bsp_face[cant_tri];
 			cant_faces = 0;
 			var pos = 0;
 			for (var i = 0; i < cant_subsets; i++)
@@ -369,10 +460,11 @@ namespace TGC.MonoGame.TP
 						Vector3 v0 = vertices[k].Position;
 						Vector3 v1 = vertices[k+1].Position;
 						Vector3 v2 = vertices[k+2].Position;
-						faces[cant_faces] = new bsp_triangle();
+						faces[cant_faces] = new bsp_face();
 						faces[cant_faces].v[0] = v0;
 						faces[cant_faces].v[1] = v1;
 						faces[cant_faces].v[2] = v2;
+						faces[cant_faces].nro_modelo = -1;		// escenario
 						cant_faces++;
 					}
 				}
@@ -603,6 +695,8 @@ namespace TGC.MonoGame.TP
 			Effect.Parameters["Projection"].SetValue(Proj);
 			Effect.Parameters["Lightmap"].SetValue(lightmap);
 
+			device.BlendState = BlendState.AlphaBlend;
+
 			// escenario estatico
 			var pos = 0;
 			for (var i = 0; i < cant_subsets; i++)
@@ -635,6 +729,19 @@ namespace TGC.MonoGame.TP
 				p_mesh.Draw(device, EffectMesh, world, View, Proj);
 			}
 
+
+			// debug bbb
+			if (cant_debug_bb > 0)
+			{
+				device.SetVertexBuffer(bbVertexBuffer);
+				Effect.CurrentTechnique = Effect.Techniques["DebugBB"];
+				foreach (var pass in Effect.CurrentTechnique.Passes)
+				{
+					pass.Apply();
+					device.DrawPrimitives(PrimitiveType.TriangleList, 0, cant_debug_bb / 3);
+				}
+			}
+
 			// env sprites
 			EffectMesh.CurrentTechnique = EffectMesh.Techniques["SpriteDrawing"];
 			var ant_blend_state = device.BlendState;
@@ -651,6 +758,8 @@ namespace TGC.MonoGame.TP
             {
 				sprites[i].Draw(spriteVertexBuffer , EffectMesh , View);
             }
+
+
 			device.BlendState = ant_blend_state;
 			device.DepthStencilState = ant_z_state;
 
@@ -658,9 +767,10 @@ namespace TGC.MonoGame.TP
 
 
 		// experimento ray - tracing
-		public float intersectSegment(Vector3 p, Vector3 q)
+		public float intersectSegment(Vector3 p, Vector3 q , out ip_data hitinfo)
 		{
-
+			hitinfo = new ip_data();
+			hitinfo.nro_face = -1;
 			/*
 			float min_t = 10000;
 			Vector3 uvw = new Vector3();
@@ -676,7 +786,7 @@ namespace TGC.MonoGame.TP
 			}
 			return min_t;
 			*/
-			
+
 
 			// test kd tree
 			float min_t = 10000;
@@ -687,7 +797,10 @@ namespace TGC.MonoGame.TP
             {
 				float t = Ip.t / dist;
 				if (t <= 1)
+				{
 					min_t = t;
+					hitinfo = Ip;
+				}
 				/*
 				if(min_t2<=1)
                 {

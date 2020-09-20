@@ -103,8 +103,9 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	*/
 
 	//return float4(clr * kd, 1);
-	return float4(clr*kd*kl, 1);
-	//return float4(1, 0, 1, 1);
+	
+	// estandard:
+	return float4(clr*kd*kl, 1);			
 
 }
 
@@ -115,6 +116,17 @@ float4 DummyPS(VertexShaderOutput input) : COLOR
 	float3 clr = tex2D(textureSampler, input.TextureCoordinate.xy).rgb;
 	float3 lm = tex2D(lightmapSampler, input.LightmapCoordinate.xy).rgb;
 	return float4(clr + lm, 1);
+}
+
+
+float4 DebugBBVS(in float4 Position:POSITION0) : SV_POSITION
+{
+	return  mul(mul(mul(Position, World), View), Projection);
+}
+
+float4 DebugBBPS() : COLOR
+{
+	return float4(0.1,0.1,0,0.5);
 }
 
 technique Phong
@@ -136,6 +148,17 @@ technique Dummy
 		PixelShader = compile PS_SHADERMODEL DummyPS();
 	}
 };
+
+
+technique DebugBB
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL DebugBBVS();
+		PixelShader = compile PS_SHADERMODEL DebugBBPS();
+	}
+};
+
 
 
 

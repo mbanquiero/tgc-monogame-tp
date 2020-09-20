@@ -9,8 +9,10 @@ namespace TGC.MonoGame.TP
 {
 	public struct mdl_subset
 	{
+		public int pos;
 		public int cant_items;
 		public string image_name;
+		public bool traslucido;
 	}
 
 	public class CMdlMesh
@@ -25,7 +27,8 @@ namespace TGC.MonoGame.TP
 		public Texture2D[] texture;
 		public string folder;
 		public string name;
-
+		public bsp_face[] faces;
+		public int cant_faces;
 
 
 		public GraphicsDevice device;
@@ -132,9 +135,40 @@ namespace TGC.MonoGame.TP
 				int cant_items = (int)BitConverter.ToInt32(arrayByte, t); t += 4;
 				subset[i].cant_items = cant_items;
 				subset[i].image_name = getString(arrayByte, t, 256); t += 256;
+				subset[i].traslucido = false;
+			}
+
+
+			// almaceno los faces a los efectos de colision
+			faces = new bsp_face[cant_v/3];
+			cant_faces = 0;
+			var pos = 0;
+			for (var i = 0; i < cant_subsets; i++)
+			{
+				for (int j = 0; j < subset[i].cant_items; ++j)
+				{
+					var k = pos + 3 * j;
+					Vector3 v0 = vertices[k].Position;
+					Vector3 v1 = vertices[k + 1].Position;
+					Vector3 v2 = vertices[k + 2].Position;
+					faces[cant_faces] = new bsp_face();
+					faces[cant_faces].v[0] = v0;
+					faces[cant_faces].v[1] = v1;
+					faces[cant_faces].v[2] = v2;
+					cant_faces++;
+				}
+				pos += subset[i].cant_items * 3;
 			}
 
 			initTextures();
+
+			// actualizo la pos de cada subset
+			pos = 0;
+			for (var i = 0; i < cant_subsets; i++)
+			{
+				subset[i].pos = pos;
+				pos += subset[i].cant_items * 3;
+			}
 
 		}
 
@@ -146,6 +180,30 @@ namespace TGC.MonoGame.TP
 				var name = CBspFile.que_tga_name(subset[i].image_name);
 				var tga = CBspFile.tex_folder + name + ".tga";
 				texture[i] = CTextureLoader.Load(device, tga);
+				// propiedades del material
+				var vmt = CBspFile.tex_folder + name + ".vmt";
+				if (File.Exists(vmt))
+				{
+					var content = File.ReadAllText(vmt).ToLower();
+					// "$translucent" "1"
+					// "$translucent" 1
+
+
+					var start = content.IndexOf("$translucent");
+					if (start >= 0)
+					{
+						start += 12;
+						if (content[start] == '\"')
+							++start;
+						if (content[start] == ' ')
+							++start;
+						if (content[start] == '\"')
+							++start;
+						if (content[start] == '1')
+							subset[i].traslucido = true;
+					}
+				}
+
 			}
 		}
 
@@ -156,28 +214,55 @@ namespace TGC.MonoGame.TP
 			Effect.Parameters["View"].SetValue(View);
 			Effect.Parameters["Projection"].SetValue(Proj);
 
-			var pos = 0;
-			for (var i = 0; i < cant_subsets; i++)
+			for (var L = 0; L < 2; ++L)
 			{
-				var cant_items = subset[i].cant_items;
-				if (cant_items > 0)
+				// L ==0  opacos , ==1 traslucidos
+				for (var i = 0; i < cant_subsets; i++)
 				{
-					//gl.bindTexture(gl.TEXTURE_2D, this.texture[i]);
-					if(texture[i]!=null)
-						Effect.Parameters["ModelTexture"].SetValue(texture[i]);
-
-					foreach (var pass in Effect.CurrentTechnique.Passes)
+					var cant_items = subset[i].cant_items;
+					if (cant_items > 0 && subset[i].traslucido==(L==1))
 					{
-						pass.Apply();
-						graphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_items);
+						var pos = subset[i].pos;
+
+						//gl.bindTexture(gl.TEXTURE_2D, this.texture[i]);
+						if (texture[i] != null)
+							Effect.Parameters["ModelTexture"].SetValue(texture[i]);
+
+						foreach (var pass in Effect.CurrentTechnique.Passes)
+						{
+							pass.Apply();
+							graphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_items);
+						}
 					}
-					pos += cant_items*3;
 				}
 			}
 
 			// dibujo el aa bb box de debug
 			//debug_box.Draw(device, p_min, p_max, Effect, World,View, Proj);
 		}
+
+
+		public void DrawSubset(GraphicsDevice graphicsDevice, Effect Effect, Matrix World, Matrix View, Matrix Proj , int nro_subset)
+		{
+
+			var cant_items = subset[nro_subset].cant_items;
+			if (cant_items > 0)
+			{
+				graphicsDevice.SetVertexBuffer(VertexBuffer);
+				Effect.Parameters["World"].SetValue(World);
+				Effect.Parameters["View"].SetValue(View);
+				Effect.Parameters["Projection"].SetValue(Proj);
+				var pos = subset[nro_subset].pos;
+				if (texture[nro_subset] != null)
+					Effect.Parameters["ModelTexture"].SetValue(texture[nro_subset]);
+				foreach (var pass in Effect.CurrentTechnique.Passes)
+				{
+					pass.Apply();
+					graphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_items);
+				}
+			}
+		}
+
 	}
 
 }
