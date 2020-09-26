@@ -61,22 +61,10 @@ namespace TGC.MonoGame.TP
 
 		public Matrix world()
         {
-
 			Matrix pitch = Matrix.CreateRotationZ(-angles.X);
 			Matrix yaw = Matrix.CreateRotationY(-angles.Y);
 			Matrix roll = Matrix.CreateRotationX(-angles.Z);
-
 			Matrix mat_world = pitch *yaw * roll * Matrix.CreateTranslation(origin);
-			/*
-			Matrix T = new Matrix( new Vector4(1, 0, 0, 0),
-								   new Vector4(0, 0, 1, 0),
-								   new Vector4(0, 1, 0, 0),
-								   new Vector4(0, 0, 0, 1));
-			Matrix pitch = Matrix.CreateRotationX(angles.X);
-			Matrix yaw = Matrix.CreateRotationZ(angles.Y);
-			Matrix roll = Matrix.CreateRotationY(angles.Z);
-			Matrix mat_world = T * pitch * yaw * roll * T * Matrix.CreateTranslation(origin);
-			*/
 			return mat_world;
 		}
 
@@ -145,7 +133,6 @@ namespace TGC.MonoGame.TP
 
 
 		// geometria
-		//todo: cambiar nombre por face3d
 		public int cant_faces;
 		public bsp_face[] faces;
 		// globales escena + todos los meshes
@@ -192,7 +179,7 @@ namespace TGC.MonoGame.TP
 			cargarEntidades(fname);
 			createSpriteQuad();
 
-			// experimento kdtree con todo la escena + los mesh
+			// experimento kdtree con toda la escena + los mesh
 			g_cant_faces = cant_faces;
 			for (int i = 0; i < cant_modelos; ++i)
 			{
@@ -210,11 +197,15 @@ namespace TGC.MonoGame.TP
 			for (int i = 0; i < cant_modelos; ++i)
 			{
 				var m = mesh_pool.meshes[modelos[i].nro_mesh];
-
-				// todos los triangulos
-				bool todos = true;
-				if (todos)
+				// TODO: determino si me conviene usar todo el mesh a nivel triangulos
+				// o solo el bounding box
+				/*var dx = m.p_max.X - m.p_min.X;
+				var dy = m.p_max.Y - m.p_min.Y;
+				var dz = m.p_max.Z - m.p_min.Z;
+				*/
+				if (true)
 				{
+					// todos los triangulos
 					for (var j = 0; j < m.cant_faces; ++j)
 					{
 						var face = g_faces[g_cant_faces++] = new bsp_face();
@@ -271,7 +262,7 @@ namespace TGC.MonoGame.TP
 			if (cant_debug_bb>0)
 			{
 				bbVertexBuffer = new VertexBuffer(device, VertexPosition.VertexDeclaration, t, BufferUsage.WriteOnly);
-				bbVertexBuffer.SetData(bb_vertices);
+				bbVertexBuffer.SetData(bb_vertices,0,t);
 			}
 
 			// armo el kdtree
@@ -721,14 +712,24 @@ namespace TGC.MonoGame.TP
 			}
 
 			// modelos estaticos
+			// primero layers opacos luego transparentes
 			EffectMesh.CurrentTechnique = EffectMesh.Techniques["TextureDrawing"];
-			for (var i = 0; i < cant_modelos; ++i)
+			device.BlendState = BlendState.Opaque;
+			for (var L = 0; L < 2; ++L)
 			{
-				Matrix world = modelos[i].world();
-				CMdlMesh p_mesh = mesh_pool.meshes[modelos[i].nro_mesh];
-				p_mesh.Draw(device, EffectMesh, world, View, Proj);
-			}
+				for (var i = 0; i < cant_modelos; ++i)
+				{
+					Matrix world = modelos[i].world();
+					CMdlMesh p_mesh = mesh_pool.meshes[modelos[i].nro_mesh];
+					p_mesh.Draw(device, EffectMesh, world, View, Proj, L);
+				}
 
+				// paso al layer transparente
+				// activo el Blend y desactivo el zwrite
+				device.BlendState = BlendState.AlphaBlend;
+				device.DepthStencilState = DepthStencilState.DepthRead;
+			}
+			device.DepthStencilState = DepthStencilState.Default;
 
 			// debug bbb
 			if (cant_debug_bb > 0)
@@ -762,6 +763,7 @@ namespace TGC.MonoGame.TP
 
 			device.BlendState = ant_blend_state;
 			device.DepthStencilState = ant_z_state;
+
 
 		}
 

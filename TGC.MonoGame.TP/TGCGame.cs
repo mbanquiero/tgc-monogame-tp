@@ -13,6 +13,7 @@ namespace TGC.MonoGame.TP
     /// </summary>
     public class TGCGame : Game
     {
+        public bool ver_smd = true;
         public bool ver_mesh = false;
         public bool ver_modelo = false;
         public const string SkinnedMeshFolder = "C:\\monogames\\tp\\TGC.MonoGame.TP\\Content\\SkinnedModels\\";
@@ -40,6 +41,7 @@ namespace TGC.MonoGame.TP
         public CPlayer player;
         public CEnemy[] enemigo = new CEnemy[MAX_ENEMIGOS];
 
+
         public Effect EffectMesh;
         public CBspFile scene;
         public CMdlMesh mesh;
@@ -50,6 +52,9 @@ namespace TGC.MonoGame.TP
         public SkinnedModelAnimation []Animations = new SkinnedModelAnimation[5];
         public SkinnedModelInstance []ModelInstance = new SkinnedModelInstance[MAX_ENEMIGOS];
         public Effect SkinnedModelEffect;
+
+        public Model tgcLogo;
+
 
         // tool ver mesh
         public Vector3 LookAt = new Vector3(0, 0, 0), LookFrom = new Vector3(100, 0, 100);
@@ -71,6 +76,10 @@ namespace TGC.MonoGame.TP
 
 
 
+        // experimento smd
+        public Effect SMDEffect;
+        public CSMDModel ak47;
+
         /// <summary>
         ///     Constructor del juego.
         /// </summary>
@@ -83,6 +92,7 @@ namespace TGC.MonoGame.TP
             Content.RootDirectory = "Content";
             // Hace que el mouse sea visible.
             IsMouseVisible = true;
+
         }
 
         private GraphicsDeviceManager Graphics { get; }
@@ -100,6 +110,73 @@ namespace TGC.MonoGame.TP
         }
 
         protected override void LoadContent()
+        {
+            LoadContentGame();
+        }
+        protected override void Update(GameTime gameTime)
+        {
+            UpdateGame(gameTime);
+        }
+        protected override void Draw(GameTime gameTime)
+        {
+            DrawGame(gameTime);
+        }
+
+
+            void LoadContentSMD()
+        {
+            font = Content.Load<SpriteFont>("SpriteFonts/Arial");
+            spriteBatch = new SpriteBatch(GraphicsDevice);
+            SMDEffect = Content.Load<Effect>("Effects/SMDEffect");
+
+            ak47 = new CSMDModel("C:\\smd\\props\\cs_assault\\dryer_box.qc", GraphicsDevice, Content, "");
+            ak47.debugEffect = Content.Load<Effect>("Effects/BasicShader");
+            ak47.anim1 = ak47.cargar_ani("C:\\smd\\props\\cs_assault\\dryer_box_anims\\idle.smd");
+
+        
+            ak47.setAnimation(ak47.anim1);
+            LookAt = ak47.cg;
+            LookFrom = LookAt + new Vector3(1, 0, 1) * ak47.size.Length() * 1.01f;
+            base.LoadContent();
+        }
+
+        void UpdateSMD(GameTime gameTime)
+        {
+            var keyState = Keyboard.GetState();
+            if (keyState.IsKeyDown(Keys.Escape))
+                //Salgo del juego.
+                Exit();
+            if (keyState.IsKeyDown(Keys.Up)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(-0.05f));
+            if (keyState.IsKeyDown(Keys.Down)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(0.05f));
+            if (keyState.IsKeyDown(Keys.Left)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(-0.05f));
+            if (keyState.IsKeyDown(Keys.Right)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(0.05f));
+            View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
+
+            ak47.updatesBones(ak47.cur_frame + 1);
+            
+
+            base.Update(gameTime);
+        }
+
+        void DrawSMD(GameTime gameTime)
+        {
+
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+            GraphicsDevice.RasterizerState = RasterizerState.CullNone;
+            GraphicsDevice.Clear(Color.Black);
+
+            ak47.Draw(GraphicsDevice , SMDEffect, Matrix.Identity , View , Projection);
+
+            spriteBatch.Begin();
+            spriteBatch.DrawString(font, "frame:"+ ak47.cur_frame , new Vector2(10, 10), Color.YellowGreen);
+            spriteBatch.End();
+            base.Draw(gameTime);
+        }
+
+
+
+
+        void LoadContentGame()
         {
             font = Content.Load<SpriteFont>("SpriteFonts/Arial");
             spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -147,12 +224,19 @@ namespace TGC.MonoGame.TP
             }
             //CharacterTexture = CTextureLoader.Load(GraphicsDevice, SkinnedMeshFolder+"zombie_diffuse.png");
             //CharacterTexture = CTextureLoader.Load(GraphicsDevice, SkinnedMeshFolder + "Zombie 2.fbm\\Yakuzombie_diffuse.png"); 
-            
+
             //
             SkinnedModelEffect = Content.Load<Effect>("Effects/SkinnedModelEffect");
 
             // armas
             rifle = new CMdlMesh(weapon_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
+
+            // huevo de pascuas
+            tgcLogo = Content.Load<Model>("Models/tgc-logo/tgc-logo");
+            var modelEffect = (BasicEffect)tgcLogo.Meshes[0].Effects[0];
+            modelEffect.DiffuseColor = Color.DarkBlue.ToVector3();
+            modelEffect.EnableDefaultLighting();
+
 
             if (ver_modelo)
             {
@@ -197,7 +281,7 @@ namespace TGC.MonoGame.TP
 
             base.LoadContent();
         }
-        protected override void Update(GameTime gameTime)
+        public void UpdateGame(GameTime gameTime)
         {
             var keyState = Keyboard.GetState();
             if (keyState.IsKeyDown(Keys.Escape))
@@ -344,9 +428,8 @@ namespace TGC.MonoGame.TP
         ///     Se llama cada vez que hay que refrescar la pantalla.
         ///     Escribir aquí todo el código referido al renderizado.
         /// </summary>
-        protected override void Draw(GameTime gameTime)
+        public void DrawGame(GameTime gameTime)
         {
-
             if (playing)
             {
                 LookAt = rLookAt[curr_frame % cant_frames % MAX_FRAMES];
@@ -390,6 +473,7 @@ namespace TGC.MonoGame.TP
                     ModelInstance[i].Draw(GraphicsDevice, SkinnedModelEffect, View, Projection);
                 }*/
 
+                /*
                 // dibujo al jugador 
                 ModelInstance[0].Transformation = CalcularMatrizOrientacion(-0.45f, player.Position - new Vector3(0, 50, 0), -player.Direction);
                 ModelInstance[0].Draw(GraphicsDevice, SkinnedModelEffect, View, Projection);
@@ -400,9 +484,11 @@ namespace TGC.MonoGame.TP
                         Matrix.CreateScale(-1 , 1, 1 ) * Matrix.CreateTranslation(weapon_desf)*
                     ModelInstance[0].MeshInstances[0].BonesOffsets[27] * 
                     ModelInstance[0].Transformation;
-
                 rifle.Draw(GraphicsDevice, EffectMesh,Matrix.CreateScale(3)*world, View, Projection);
-
+                */
+                tgcLogo.Draw(Matrix.CreateScale(2.0f)*
+                    Matrix.CreateRotationY(MathHelper.Pi*(float)gameTime.TotalGameTime.TotalSeconds*0.5f)
+                        *Matrix.CreateTranslation(3500,665,5900), View, Projection);
 
             }
 
@@ -428,11 +514,13 @@ namespace TGC.MonoGame.TP
                     {
                         var modelo = scene.modelos[face.nro_modelo];
                         var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
-                        spriteBatch.DrawString(font, "IP" + mesh.name, new Vector2(10, 50), Color.YellowGreen);
+                        spriteBatch.DrawString(font,  mesh.name, new Vector2(10, 50), Color.YellowGreen);
                     }
                 }
                 int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
-                spriteBatch.DrawString(font, "FPS:"+ framerate, new Vector2(10, 10), Color.YellowGreen);
+                spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
+                spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
+                        new Vector2(10, 100), Color.YellowGreen);
             }
 
             spriteBatch.End();

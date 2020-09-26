@@ -127,7 +127,7 @@ namespace TGC.MonoGame.TP
 			VertexBuffer = new VertexBuffer(device, VertexPositionNormalTexture.VertexDeclaration, cant_v, BufferUsage.WriteOnly);
 			VertexBuffer.SetData(vertices);
 
-			// estructura de sub-setes
+			// estructura de subsets
 			cant_subsets = BitConverter.ToInt32(arrayByte, t); t += 4;
 			subset = new mdl_subset[cant_subsets];
 			for (int i = 0; i < cant_subsets; ++i)
@@ -207,32 +207,30 @@ namespace TGC.MonoGame.TP
 			}
 		}
 
-		public void Draw(GraphicsDevice graphicsDevice, Effect Effect, Matrix World, Matrix View, Matrix Proj)
+		public void Draw(GraphicsDevice graphicsDevice, Effect Effect, 
+				Matrix World, Matrix View, Matrix Proj , int L=0)
 		{
 			graphicsDevice.SetVertexBuffer(VertexBuffer);
 			Effect.Parameters["World"].SetValue(World);
 			Effect.Parameters["View"].SetValue(View);
 			Effect.Parameters["Projection"].SetValue(Proj);
 
-			for (var L = 0; L < 2; ++L)
+			// L ==0  opacos , ==1 traslucidos
+			for (var i = 0; i < cant_subsets; i++)
 			{
-				// L ==0  opacos , ==1 traslucidos
-				for (var i = 0; i < cant_subsets; i++)
+				var cant_items = subset[i].cant_items;
+				if (cant_items > 0 && subset[i].traslucido==(L==1))
 				{
-					var cant_items = subset[i].cant_items;
-					if (cant_items > 0 && subset[i].traslucido==(L==1))
+					var pos = subset[i].pos;
+
+					//gl.bindTexture(gl.TEXTURE_2D, this.texture[i]);
+					if (texture[i] != null)
+						Effect.Parameters["ModelTexture"].SetValue(texture[i]);
+
+					foreach (var pass in Effect.CurrentTechnique.Passes)
 					{
-						var pos = subset[i].pos;
-
-						//gl.bindTexture(gl.TEXTURE_2D, this.texture[i]);
-						if (texture[i] != null)
-							Effect.Parameters["ModelTexture"].SetValue(texture[i]);
-
-						foreach (var pass in Effect.CurrentTechnique.Passes)
-						{
-							pass.Apply();
-							graphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_items);
-						}
+						pass.Apply();
+						graphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_items);
 					}
 				}
 			}
