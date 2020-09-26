@@ -64,7 +64,7 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 //    skinnedPosition = input.Position;
 
     // Project position
-    float4 worldPosition = mul(skinnedPosition.xzyw, World);
+    float4 worldPosition = mul(skinnedPosition, World);
     float4 viewPosition = mul(worldPosition, View);
     output.Position = mul(viewPosition, Projection);
 
@@ -78,6 +78,7 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
     float4 textureColor = tex2D(textureSampler, input.Uv);
+    textureColor.r = 1;
     return textureColor;
 }
 

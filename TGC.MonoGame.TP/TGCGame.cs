@@ -13,7 +13,7 @@ namespace TGC.MonoGame.TP
     /// </summary>
     public class TGCGame : Game
     {
-        public bool ver_smd = true;
+        public bool ver_smd = false;
         public bool ver_mesh = false;
         public bool ver_modelo = false;
         public const string SkinnedMeshFolder = "C:\\monogames\\tp\\TGC.MonoGame.TP\\Content\\SkinnedModels\\";
@@ -55,7 +55,6 @@ namespace TGC.MonoGame.TP
 
         public Model tgcLogo;
 
-
         // tool ver mesh
         public Vector3 LookAt = new Vector3(0, 0, 0), LookFrom = new Vector3(100, 0, 100);
 
@@ -79,6 +78,7 @@ namespace TGC.MonoGame.TP
         // experimento smd
         public Effect SMDEffect;
         public CSMDModel ak47;
+        public bool ver_smd_con_mesh = true;
 
         /// <summary>
         ///     Constructor del juego.
@@ -111,32 +111,50 @@ namespace TGC.MonoGame.TP
 
         protected override void LoadContent()
         {
-            LoadContentGame();
+            if(ver_smd)
+                LoadContentSMD();
+            else
+                LoadContentGame();
         }
         protected override void Update(GameTime gameTime)
         {
-            UpdateGame(gameTime);
+            if (ver_smd)
+                UpdateSMD(gameTime);
+            else
+                UpdateGame(gameTime);
         }
         protected override void Draw(GameTime gameTime)
         {
-            DrawGame(gameTime);
+            if (ver_smd)
+                DrawSMD(gameTime);
+            else
+                DrawGame(gameTime);
         }
 
 
-            void LoadContentSMD()
+        void LoadContentSMD()
         {
             font = Content.Load<SpriteFont>("SpriteFonts/Arial");
             spriteBatch = new SpriteBatch(GraphicsDevice);
             SMDEffect = Content.Load<Effect>("Effects/SMDEffect");
+            EffectMesh = Content.Load<Effect>("Effects/BasicShader");
+            EffectMesh.CurrentTechnique = EffectMesh.Techniques["TextureDrawing"];
 
-            ak47 = new CSMDModel("C:\\smd\\props\\cs_assault\\dryer_box.qc", GraphicsDevice, Content, "");
+            //mesh_name = "props\\cs_assault\\dryer_box";
+            mesh_name = "props\\cs_assault\\moneypallet_washerdryer";
+            ak47 = new CSMDModel(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
+            //ak47 = new CSMDModel("weapons\\v_rif_galil", GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
             ak47.debugEffect = Content.Load<Effect>("Effects/BasicShader");
-            ak47.anim1 = ak47.cargar_ani("C:\\smd\\props\\cs_assault\\dryer_box_anims\\idle.smd");
 
-        
-            ak47.setAnimation(ak47.anim1);
+            //ak47.setAnimation(ak47.anim1);
             LookAt = ak47.cg;
             LookFrom = LookAt + new Vector3(1, 0, 1) * ak47.size.Length() * 1.01f;
+
+            mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
+            //LookAt = mesh.cg;
+            //LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
+
+
             base.LoadContent();
         }
 
@@ -150,9 +168,20 @@ namespace TGC.MonoGame.TP
             if (keyState.IsKeyDown(Keys.Down)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(0.05f));
             if (keyState.IsKeyDown(Keys.Left)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(-0.05f));
             if (keyState.IsKeyDown(Keys.Right)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(0.05f));
+
+            if (keyState.IsKeyDown(Keys.S))
+            {
+                if (!keyDown[(int)Keys.S])
+                    ver_smd_con_mesh = !ver_smd_con_mesh;
+                keyDown[(int)Keys.S] = true;
+            }
+            else
+                keyDown[(int)Keys.S] = false;
+
+
             View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
 
-            ak47.updatesBones(ak47.cur_frame + 1);
+            //ak47.updatesBones(ak47.cur_frame + 1);
             
 
             base.Update(gameTime);
@@ -164,11 +193,14 @@ namespace TGC.MonoGame.TP
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
             GraphicsDevice.RasterizerState = RasterizerState.CullNone;
             GraphicsDevice.Clear(Color.Black);
-
-            ak47.Draw(GraphicsDevice , SMDEffect, Matrix.Identity , View , Projection);
+            
+            if(ver_smd_con_mesh)
+                ak47.Draw(GraphicsDevice , EffectMesh, Matrix.Identity , View , Projection);
+            else
+                mesh.Draw(GraphicsDevice, EffectMesh, Matrix.Identity, View, Projection);
 
             spriteBatch.Begin();
-            spriteBatch.DrawString(font, "frame:"+ ak47.cur_frame , new Vector2(10, 10), Color.YellowGreen);
+            spriteBatch.DrawString(font, ver_smd_con_mesh ? "mesh": "smd", new Vector2(10, 10), Color.YellowGreen);
             spriteBatch.End();
             base.Draw(gameTime);
         }
@@ -353,6 +385,16 @@ namespace TGC.MonoGame.TP
                 }
                 else
                     keyDown[(int)Keys.P] = false;
+
+
+                if (keyState.IsKeyDown(Keys.S))
+                {
+                    if (!keyDown[(int)Keys.S])
+                        scene.usar_smd = !scene.usar_smd;
+                    keyDown[(int)Keys.S] = true;
+                }
+                else
+                    keyDown[(int)Keys.S] = false;
 
 
                 player.ProcessInput(elapsed_time);

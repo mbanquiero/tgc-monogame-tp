@@ -88,11 +88,10 @@ namespace TGC.MonoGame.TP
 		public int cant_bones;
 		public smd_bone[] bones;
 		public smd_animation anim1;
-		public smd_animation p_anim;
+		public smd_animation p_anim = null;
 		public int cur_frame;
 		public Matrix[] matBoneSpace = new Matrix[MAX_BONES];
 
-		public string smd_folder;
 		public int cant_cdmaterials;
 		public String[] cdmaterials;
 
@@ -122,7 +121,7 @@ namespace TGC.MonoGame.TP
 		{
 
 			name = fname;
-			folder = p_folder;
+			folder = p_folder + "smd\\";
 			device = p_device;
 			Content = p_content;
 			matWorld = Matrix.Identity;
@@ -141,10 +140,10 @@ namespace TGC.MonoGame.TP
 
 		public bool cargar(String name)
         {
-			String smd_name = null;
-			smd_folder = Path.GetDirectoryName(name)+"\\";
+			string smd_name = null;
+			string smd_folder = Path.GetDirectoryName(name);
 			// cargo el archivo .qc
-			var fp = new System.IO.StreamReader(name);
+			var fp = new System.IO.StreamReader(folder+name+".qc");
 			while (!fp.EndOfStream)
 			{
 				var s = fp.ReadLine().TrimStart();
@@ -154,17 +153,17 @@ namespace TGC.MonoGame.TP
 					cdmaterials[cant_cdmaterials++] = s.Substring(14).Replace("\"","");
 				}
 				else
-				if (s.StartsWith("studio"))
+				if (s.StartsWith("studio") && smd_name==null)
 				{
 					// studio "ak47-1"
-					smd_name = s.Substring(8).Replace("\"", "");
+					smd_name = smd_folder+"\\"+s.Substring(8).Replace("\"", "");
 				}
 			}
 
 			var rta = false;
 			if(smd_name!=null)
             {
-				rta = cargar_smd(smd_folder+smd_name);
+				rta = cargar_smd(folder+smd_name);
             }
 
 			return rta;
@@ -248,14 +247,25 @@ namespace TGC.MonoGame.TP
 					string[] tokens = buffer.Split(' ');
 					int id = int.Parse(tokens[0]);
 
-					var x = vertices[cant_v].Position.X = atof(tokens[1]);
-					var y = vertices[cant_v].Position.Y = atof(tokens[2]);
-					var z = vertices[cant_v].Position.Z = atof(tokens[3]);
+
+					var z = atof(tokens[1]);
+					var x = -atof(tokens[2]);
+					var y = atof(tokens[3]);
+
+					/*
+					var x = vertices[cant_v].Position.Z = atof(tokens[1]);
+					var y = vertices[cant_v].Position.X = atof(tokens[2]);
+					var z = vertices[cant_v].Position.Y = atof(tokens[3]);
+					*/
+
+					vertices[cant_v].Position.X = x;
+					vertices[cant_v].Position.Y = y;
+					vertices[cant_v].Position.Z = z;
 					vertices[cant_v].Normal.X = atof(tokens[4]);
 					vertices[cant_v].Normal.Y = atof(tokens[5]);
 					vertices[cant_v].Normal.Z = atof(tokens[6]);
 					vertices[cant_v].TextureCoordinate.X = atof(tokens[7]);
-					vertices[cant_v].TextureCoordinate.Y = atof(tokens[8]);
+					vertices[cant_v].TextureCoordinate.Y = -atof(tokens[8]);
 					vertices[cant_v].BlendIndices.X = id;
 					vertices[cant_v].BlendWeight.X = 1;
 					++cant_v;
@@ -457,6 +467,8 @@ namespace TGC.MonoGame.TP
 
 		public void updatesBones(int frame)
 		{
+			if (p_anim == null)
+				return;
 			cur_frame = frame = frame % p_anim.cant_frames;
 			for (int i = 0; i < p_anim.frames[frame].cant_bone_animations; ++i)
 			{
@@ -543,8 +555,12 @@ namespace TGC.MonoGame.TP
 			Effect.Parameters["View"].SetValue(View);
 			Effect.Parameters["Projection"].SetValue(Proj);
 
-			updateMeshVertices();
-			Effect.Parameters["bonesMatWorldArray"].SetValue(matBoneSpace);
+			if(p_anim!=null)
+            {
+				// modelo animado
+				updateMeshVertices();
+				Effect.Parameters["bonesMatWorldArray"].SetValue(matBoneSpace);
+			}
 
 			/*
 			Vector3 s = new Vector3(1, 1, 1) * 0.1f;

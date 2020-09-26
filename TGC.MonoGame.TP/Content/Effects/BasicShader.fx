@@ -38,8 +38,8 @@ sampler2D textureSampler = sampler_state
 	Texture = (ModelTexture);
 	MagFilter = Linear;
 	MinFilter = Linear;
-	AddressU = Mirror;
-	AddressV = Mirror;
+	AddressU = Wrap;
+	AddressV = Wrap;
 };
 
 float Time = 0;
@@ -57,7 +57,8 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 	output.Normal = mul ( (float3x3)World, input.Normal );
 
 	// Propagate texture coordinates
-	output.TextureCoordinate = input.TextureCoordinate;
+	//output.TextureCoordinate = float2(input.TextureCoordinate.x, -input.TextureCoordinate.y);
+	output.TextureCoordinate = float2(input.TextureCoordinate.x, input.TextureCoordinate.y);
 
 	// Pos en world
 	output.WorldPos = worldPosition.xyz;
