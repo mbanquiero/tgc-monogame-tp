@@ -13,23 +13,14 @@ namespace TGC.MonoGame.TP
     /// </summary>
     public class TGCGame : Game
     {
-        public bool ver_smd = false;
-        public bool ver_mesh = false;
-        public bool ver_modelo = false;
-        public const string SkinnedMeshFolder = "C:\\monogames\\tp\\TGC.MonoGame.TP\\Content\\SkinnedModels\\";
-        public const string ContentFolder = "C:\\Counter-Strike Source\\cstrike\\";
+
+        public float soldier_height = 77;
+
+        public const string cs_folder = "C:\\Counter-Strike Source\\cstrike\\";
         public const string map_name = "cs_assault";
-        //"de_mirage_csgo"
-        //public String mesh_name = "props\\de_train\\utility_truck";
-        public String mesh_name = "props_c17/fence02a";
-        //public String mesh_name = "props/cs_assault/money";
-        //public String mesh_name = "props_junk\\garbage_bag001a";
-        //public String mesh_name = "props_borealis\\borealis_door001a";
-        //public String mesh_name = "props_wasteland\\exterior_fence002d";
-        public String weapon_name = "weapons\\w_rif_ak47";
-        //w_snip_sg550
-        public Vector3 weapon_desf = new Vector3(-65.7f, 139.8f, -12.1f);
-        public float weapon_angle = -88;
+        public String weapon_name = "weapons\\v_rif_ak47";
+        public Vector3 weapon_desf = new Vector3(-4,-1,-14);
+        public float weapon_angle = 80;
 
         public float fieldOfView = MathHelper.PiOver4;
         public float aspectRatio = 1;
@@ -37,21 +28,13 @@ namespace TGC.MonoGame.TP
         public float farClipPlane = 50000;
         Matrix Projection, View;
 
-        public const int MAX_ENEMIGOS = 1;
+        public const int MAX_ENEMIGOS = 10;
         public CPlayer player;
         public CEnemy[] enemigo = new CEnemy[MAX_ENEMIGOS];
-
+        public Vector3 camPosition;
 
         public Effect EffectMesh;
         public CBspFile scene;
-        public CMdlMesh mesh;
-        public CMdlMesh rifle;
-
-        // skinned mesh
-        public SkinnedModel []CharacterMesh = new SkinnedModel[4];
-        public SkinnedModelAnimation []Animations = new SkinnedModelAnimation[5];
-        public SkinnedModelInstance []ModelInstance = new SkinnedModelInstance[MAX_ENEMIGOS];
-        public Effect SkinnedModelEffect;
 
         public Model tgcLogo;
 
@@ -62,7 +45,7 @@ namespace TGC.MonoGame.TP
         public SpriteBatch spriteBatch;
         public bool[] keyDown = new bool[256];
 
-        public bool fisica = false;
+        public bool fisica = true;
 
         // grabar gamelay
         public bool recording = false;
@@ -73,12 +56,13 @@ namespace TGC.MonoGame.TP
         public Vector3[] rLookAt = new Vector3[MAX_FRAMES];
         public Vector3[] rLookFrom = new Vector3[MAX_FRAMES];
 
-
-
-        // experimento smd
-        public Effect SMDEffect;
+        // modelos
+        public Effect EffectSmd;
         public CSMDModel ak47;
-        public bool ver_smd_con_mesh = true;
+        public CSMDModel soldier;
+
+        // mouse captured
+        public int mouse_ox, mouse_oy;
 
         /// <summary>
         ///     Constructor del juego.
@@ -106,162 +90,54 @@ namespace TGC.MonoGame.TP
             Graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
             Graphics.ApplyChanges();
             base.Initialize();
-            //Mouse.SetPosition(mouse_ox = GraphicsDevice.Viewport.Width / 2,mouse_oy = GraphicsDevice.Viewport.Height / 2);
+            Mouse.SetPosition(mouse_ox = GraphicsDevice.Viewport.Width / 2,mouse_oy = GraphicsDevice.Viewport.Height / 2);
         }
 
         protected override void LoadContent()
         {
-            if(ver_smd)
-                LoadContentSMD();
-            else
-                LoadContentGame();
+               LoadContentGame();
         }
         protected override void Update(GameTime gameTime)
         {
-            if (ver_smd)
-                UpdateSMD(gameTime);
-            else
                 UpdateGame(gameTime);
         }
         protected override void Draw(GameTime gameTime)
         {
-            if (ver_smd)
-                DrawSMD(gameTime);
-            else
                 DrawGame(gameTime);
         }
-
-
-        void LoadContentSMD()
-        {
-            font = Content.Load<SpriteFont>("SpriteFonts/Arial");
-            spriteBatch = new SpriteBatch(GraphicsDevice);
-            SMDEffect = Content.Load<Effect>("Effects/SMDEffect");
-            EffectMesh = Content.Load<Effect>("Effects/BasicShader");
-            EffectMesh.CurrentTechnique = EffectMesh.Techniques["TextureDrawing"];
-
-            //mesh_name = "props\\cs_assault\\dryer_box";
-            mesh_name = "props\\cs_assault\\moneypallet_washerdryer";
-            ak47 = new CSMDModel(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
-            //ak47 = new CSMDModel("weapons\\v_rif_galil", GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
-            ak47.debugEffect = Content.Load<Effect>("Effects/BasicShader");
-
-            //ak47.setAnimation(ak47.anim1);
-            LookAt = ak47.cg;
-            LookFrom = LookAt + new Vector3(1, 0, 1) * ak47.size.Length() * 1.01f;
-
-            mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
-            //LookAt = mesh.cg;
-            //LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
-
-
-            base.LoadContent();
-        }
-
-        void UpdateSMD(GameTime gameTime)
-        {
-            var keyState = Keyboard.GetState();
-            if (keyState.IsKeyDown(Keys.Escape))
-                //Salgo del juego.
-                Exit();
-            if (keyState.IsKeyDown(Keys.Up)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(-0.05f));
-            if (keyState.IsKeyDown(Keys.Down)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(0.05f));
-            if (keyState.IsKeyDown(Keys.Left)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(-0.05f));
-            if (keyState.IsKeyDown(Keys.Right)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(0.05f));
-
-            if (keyState.IsKeyDown(Keys.S))
-            {
-                if (!keyDown[(int)Keys.S])
-                    ver_smd_con_mesh = !ver_smd_con_mesh;
-                keyDown[(int)Keys.S] = true;
-            }
-            else
-                keyDown[(int)Keys.S] = false;
-
-
-            View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
-
-            //ak47.updatesBones(ak47.cur_frame + 1);
-            
-
-            base.Update(gameTime);
-        }
-
-        void DrawSMD(GameTime gameTime)
-        {
-
-            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
-            GraphicsDevice.RasterizerState = RasterizerState.CullNone;
-            GraphicsDevice.Clear(Color.Black);
-            
-            if(ver_smd_con_mesh)
-                ak47.Draw(GraphicsDevice , EffectMesh, Matrix.Identity , View , Projection);
-            else
-                mesh.Draw(GraphicsDevice, EffectMesh, Matrix.Identity, View, Projection);
-
-            spriteBatch.Begin();
-            spriteBatch.DrawString(font, ver_smd_con_mesh ? "mesh": "smd", new Vector2(10, 10), Color.YellowGreen);
-            spriteBatch.End();
-            base.Draw(gameTime);
-        }
-
-
 
 
         void LoadContentGame()
         {
             font = Content.Load<SpriteFont>("SpriteFonts/Arial");
             spriteBatch = new SpriteBatch(GraphicsDevice);
+
             EffectMesh = Content.Load<Effect>("Effects/BasicShader");
+            EffectSmd = Content.Load<Effect>("Effects/SMDEffect");
+            EffectSmd.CurrentTechnique = EffectSmd.Techniques["SkinnedMesh"];
 
-            String[] st_characters = {
-                        "swat",
-                        "zombiegirl_w_kurniawan" ,
-                        "Zombie 1" ,
-                        "Zombie 2" ,
-                        "Zombie 3" };
+            // Arma
+            weapon_name = "weapons\\v_rif_galil";
+            String ani_folder = weapon_name + "_anims";
+            ak47 = new CSMDModel(weapon_name, GraphicsDevice, Content, cs_folder);
+            ak47.debugEffect = Content.Load<Effect>("Effects/BasicShader");
+            // cargo las animaciones
+            ak47.cargar_ani(ani_folder, "draw");
+            ak47.cargar_ani(ani_folder, "idle");
+            ak47.cargar_ani(ani_folder, "reload");
+            ak47.cargar_ani(ani_folder, "shoot1");
+            ak47.cargar_ani(ani_folder, "shoot2");
+            ak47.cargar_ani(ani_folder, "shoot3");
+            ak47.setAnimation(2);
 
-            for (int i = 0; i < 4; ++i)
-            {
-                CharacterMesh[i] = new SkinnedModel(!ver_modelo);
-                CharacterMesh[i].GraphicsDevice = GraphicsDevice;
-                CharacterMesh[i].FilePath = SkinnedMeshFolder + "FBX 2013\\" + st_characters[i] + ".fbx";
-                CharacterMesh[i].TexturePath = SkinnedMeshFolder + st_characters[i] + ".fbm\\";
-                CharacterMesh[i].Initialize();
-            }
+            // Soldado
+            soldier = new CSMDModel("player\\ct_sas", GraphicsDevice, Content, cs_folder);
+            soldier.cargar_ani("player\\ct_sas_anims", "ragdoll");
+            soldier.cargar_ani("player\\cs_player_shared_anims", "a_WalkN");
+            soldier.anim[1].in_site = true;
+            soldier.setAnimation(1);
+            soldier_height = soldier.size.Y;
 
-            String[] st_animations = {
-                        "Idle" ,
-                        "Female Tough Walk" ,
-                        "Zombie Running" ,
-                        "Firing Rifle",
-                        "Zombie Walk"};
-
-            for (int i = 0; i < 4; ++i)
-            {
-                Animations[i] = new SkinnedModelAnimation();
-                Animations[i].FilePath = SkinnedMeshFolder + st_animations[i] + ".dae";
-                Animations[i].Load();
-            }
-
-            Random rnd = new Random();
-            for (int i = 0; i < MAX_ENEMIGOS; ++i)
-            {
-                ModelInstance[i] = new SkinnedModelInstance();
-                ModelInstance[i].Mesh = CharacterMesh[0];           // rnd.Next(0,3)
-                ModelInstance[i].SpeedTransitionSecond = 0.4f;
-                ModelInstance[i].Initialize();
-                ModelInstance[i].SetAnimation(Animations[rnd.Next(0, 0)]);
-                ModelInstance[i].Time = (float)rnd.Next(200) / 100.0f;
-            }
-            //CharacterTexture = CTextureLoader.Load(GraphicsDevice, SkinnedMeshFolder+"zombie_diffuse.png");
-            //CharacterTexture = CTextureLoader.Load(GraphicsDevice, SkinnedMeshFolder + "Zombie 2.fbm\\Yakuzombie_diffuse.png"); 
-
-            //
-            SkinnedModelEffect = Content.Load<Effect>("Effects/SkinnedModelEffect");
-
-            // armas
-            rifle = new CMdlMesh(weapon_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
 
             // huevo de pascuas
             tgcLogo = Content.Load<Model>("Models/tgc-logo/tgc-logo");
@@ -270,199 +146,156 @@ namespace TGC.MonoGame.TP
             modelEffect.EnableDefaultLighting();
 
 
-            if (ver_modelo)
+            scene = new CBspFile(map_name, GraphicsDevice, Content);
+            player = new CPlayer(scene , this);
+
+            Random rnd = new Random();
+            for (int i = 0; i < MAX_ENEMIGOS; ++i)
             {
-                LookAt = new Vector3(0, 200, 0);
-                LookFrom = new Vector3(900, 550, 0);
-            }
-            else
-            if(ver_mesh)
-            {
-                mesh = new CMdlMesh(mesh_name, GraphicsDevice, Content, "C:\\Counter-Strike Source\\cstrike\\");
-                LookAt = mesh.cg;
-                LookFrom = LookAt + new Vector3(1, 0, 1) * mesh.size.Length() * 1.1f;
-            }
-            else
-            {
-                scene = new CBspFile(map_name, GraphicsDevice, Content);
-                player = new CPlayer(scene);
+                enemigo[i] = new CEnemy(scene , this);
+                enemigo[i].Position = new Vector3(rnd.Next((int)scene.p_min.X, (int)scene.p_max.X), 
+                                scene.p_max.Y, rnd.Next((int)scene.p_min.Z, (int)scene.p_max.Z));
+                enemigo[i].Position = new Vector3(7242+ rnd.Next(-300,300), -493, 6746+ rnd.Next(-300, 300));
 
-                for (int i = 0; i < MAX_ENEMIGOS; ++i)
-                {
-                    enemigo[i] = new CEnemy(scene);
-                    enemigo[i].Position = new Vector3(rnd.Next((int)scene.p_min.X, (int)scene.p_max.X), 
-                                    scene.p_max.Y, rnd.Next((int)scene.p_min.Z, (int)scene.p_max.Z));
-                    enemigo[i].Position = new Vector3(7242+ rnd.Next(-300,300), -493, 6746+ rnd.Next(-300, 300));
-
-                    float an = rnd.Next(0, 360)*MathF.PI/180.0f;
-                    enemigo[i].Direction = new Vector3(MathF.Cos(an), 0, MathF.Sin(an));
-
-
-                    //enemigo[i].Position = new Vector3(7242-i*20, -493, 6746);
-                    //enemigo[i].Direction = new Vector3(0, 0, -1);
-
-                }
-
-                player.Position = scene.cg;
-                player.Direction = new Vector3(0,0,1);
-
-                enemigo[0].Position = new Vector3(7242, -493, 6746);
-                enemigo[0].Direction = new Vector3(0, 0, -1);
+                float an = rnd.Next(0, 360)*MathF.PI/180.0f;
+                enemigo[i].Direction = new Vector3(MathF.Cos(an), 0, MathF.Sin(an));
 
             }
+            
+            enemigo[0].PrevPosition = enemigo[0].Position = new Vector3(6447, -800, 6276);
+            //enemigo[0].PrevPosition = enemigo[0].Position = new Vector3(7242, -400, 5116);
+            enemigo[0].Direction = new Vector3(0, 0, -1);
+            enemigo[0].vel_lineal = soldier.speed;
+
+            //player.Position = new Vector3(6447, -800, 6376);
+            player.Position = scene.cg;
+            player.Direction = new Vector3(0,0,1);
 
             base.LoadContent();
         }
+
+
         public void UpdateGame(GameTime gameTime)
         {
+            float elapsed_time = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var keyState = Keyboard.GetState();
             if (keyState.IsKeyDown(Keys.Escape))
-                //Salgo del juego.
-                Exit();
+                Exit();                     //Salgo del juego.
 
-
-            if(ver_modelo)
-            {
-                ModelInstance[0].Transformation = Matrix.CreateScale(-3.0f, 3.0f, 3.0f);
-                //* Matrix.CreateRotationY(2.5f * (float)gameTime.TotalGameTime.TotalSeconds);
-                
-            }
+            float k = ak47.cur_anim >= 3 ? 10 : 1;
+            ak47.update(elapsed_time * k);
 
             for (int i=0;i<MAX_ENEMIGOS;++i)
             {
-                ModelInstance[i].Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                soldier.update(elapsed_time);
             }
 
-            if (ver_mesh || ver_modelo)
+            MouseState state = Mouse.GetState();
+            if (keyState.IsKeyDown(Keys.Space))
             {
-                // tool ver mesh
-                // Press Directional Keys to rotate cube
-                if (keyState.IsKeyDown(Keys.Up)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(-0.05f));
-                if (keyState.IsKeyDown(Keys.Down)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationX(0.05f));
-                if (keyState.IsKeyDown(Keys.Left)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(-0.05f));
-                if (keyState.IsKeyDown(Keys.Right)) LookFrom = Vector3.Transform(LookFrom, Matrix.CreateRotationY(0.05f));
-                View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
+                if (!keyDown[(int)Keys.Space])
+                    fisica = !fisica;
+                keyDown[(int)Keys.Space] = true;
+            }
+            else
+                keyDown[(int)Keys.Space] = false;
 
+            if (keyState.IsKeyDown(Keys.T))
+            {
+                if (!keyDown[(int)Keys.T])
+                    scene.mostrar_tools = !scene.mostrar_tools;
+                keyDown[(int)Keys.T] = true;
+            }
+            else
+                keyDown[(int)Keys.T] = false;
+
+            if (keyState.IsKeyDown(Keys.R))
+            {
+                if (!keyDown[(int)Keys.R])
+                    recording = !recording;
+                keyDown[(int)Keys.R] = true;
+            }
+            else
+                keyDown[(int)Keys.R] = false;
+
+            if (keyState.IsKeyDown(Keys.P))
+            {
+                if (!keyDown[(int)Keys.P])
+                    playing = !playing;
+                keyDown[(int)Keys.P] = true;
+                if (playing)
+                    curr_frame = 0;
+            }
+            else
+                keyDown[(int)Keys.P] = false;
+
+
+            if (keyState.IsKeyDown(Keys.S))
+            {
+                if (!keyDown[(int)Keys.S])
+                    scene.usar_smd = !scene.usar_smd;
+                keyDown[(int)Keys.S] = true;
+            }
+            else
+                keyDown[(int)Keys.S] = false;
+
+            player.ProcessInput(elapsed_time);
+
+            if (fisica)
+            {
+                player.UpdatePhysics(elapsed_time);
+            }
+
+            for (int i = 0; i < MAX_ENEMIGOS; ++i)
+                enemigo[i].UpdatePhysics(elapsed_time);
+
+
+            if (keyState.IsKeyDown(Keys.LeftShift))
+            {
+                if (keyState.IsKeyDown(Keys.Up)) weapon_desf.Z += 1.1f;
+                if (keyState.IsKeyDown(Keys.Down)) weapon_desf.Z -= 1.1f;
+                if (keyState.IsKeyDown(Keys.Left)) weapon_desf.X += 1.1f;
+                if (keyState.IsKeyDown(Keys.Right)) weapon_desf.X -= 1.1f;
+
+            }
+            if (keyState.IsKeyDown(Keys.Q)) weapon_desf.Y += 1.1f;
+            if (keyState.IsKeyDown(Keys.A)) weapon_desf.Y -= 1.1f;
+            if (keyState.IsKeyDown(Keys.W)) weapon_angle+= 1;
+            if (keyState.IsKeyDown(Keys.S)) weapon_angle-= 1;
+
+            if (state.LeftButton == ButtonState.Pressed)
+                ak47.setAnimation(3);
+            else
+                ak47.setAnimation(1);
+
+
+            if (playing)
+            {
+                /*LookAt = rLookAt[curr_frame % cant_frames % MAX_FRAMES];
+                LookFrom = rLookFrom[curr_frame % cant_frames % MAX_FRAMES];
+                View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
+                */
             }
             else
             {
-                float elapsed_time = (float)gameTime.ElapsedGameTime.TotalSeconds;
-                MouseState state = Mouse.GetState();
-                if (keyState.IsKeyDown(Keys.Space))
+                if (recording)
                 {
-                    if (!keyDown[(int)Keys.Space])
-                        fisica = !fisica;
-                    keyDown[(int)Keys.Space] = true;
-                }
-                else
-                    keyDown[(int)Keys.Space] = false;
-
-                if (keyState.IsKeyDown(Keys.T))
-                {
-                    if (!keyDown[(int)Keys.T])
-                        scene.mostrar_tools = !scene.mostrar_tools;
-                    keyDown[(int)Keys.T] = true;
-                }
-                else
-                    keyDown[(int)Keys.T] = false;
-
-                if (keyState.IsKeyDown(Keys.R))
-                {
-                    if (!keyDown[(int)Keys.R])
-                        recording = !recording;
-                    keyDown[(int)Keys.R] = true;
-                }
-                else
-                    keyDown[(int)Keys.R] = false;
-
-                if (keyState.IsKeyDown(Keys.P))
-                {
-                    if (!keyDown[(int)Keys.P])
-                        playing = !playing;
-                    keyDown[(int)Keys.P] = true;
-                    if (playing)
-                        curr_frame = 0;
-                }
-                else
-                    keyDown[(int)Keys.P] = false;
-
-
-                if (keyState.IsKeyDown(Keys.S))
-                {
-                    if (!keyDown[(int)Keys.S])
-                        scene.usar_smd = !scene.usar_smd;
-                    keyDown[(int)Keys.S] = true;
-                }
-                else
-                    keyDown[(int)Keys.S] = false;
-
-
-                player.ProcessInput(elapsed_time);
-                if (fisica)
-                {
-                    player.UpdatePhysics(elapsed_time);
+                    rLookFrom[cant_frames % MAX_FRAMES] = player.Position;
+                    rLookAt[cant_frames % MAX_FRAMES] = player.Position + player.Direction;
+                    ++cant_frames;
                 }
 
-                for (int i = 0; i < MAX_ENEMIGOS; ++i)
-                    enemigo[i].UpdatePhysics(elapsed_time);
-
-
-                if (keyState.IsKeyDown(Keys.LeftShift))
-                {
-                    if (keyState.IsKeyDown(Keys.Up)) weapon_desf.Z += 1.1f;
-                    if (keyState.IsKeyDown(Keys.Down)) weapon_desf.Z -= 1.1f;
-                    if (keyState.IsKeyDown(Keys.Left)) weapon_desf.X += 1.1f;
-                    if (keyState.IsKeyDown(Keys.Right)) weapon_desf.X -= 1.1f;
-
-                }
-                if (keyState.IsKeyDown(Keys.Q)) weapon_desf.Y += 1.1f;
-                if (keyState.IsKeyDown(Keys.A)) weapon_desf.Y -= 1.1f;
-                if (keyState.IsKeyDown(Keys.W)) weapon_angle+= 1;
-                if (keyState.IsKeyDown(Keys.S)) weapon_angle-= 1;
-
-
-
-                // animo al jugador
-                /*
-                if ((posPlayer-posAnt).LengthSquared()>0)
-                {
-                    model.setCurrentAnimation(5);
-                }
-                else
-                {
-                    model.setCurrentAnimation(6);
-                }
-                */
-
-                if (playing)
-                {
-                    /*LookAt = rLookAt[curr_frame % cant_frames % MAX_FRAMES];
-                    LookFrom = rLookFrom[curr_frame % cant_frames % MAX_FRAMES];
-                    View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
-                    */
-                }
-                else
-                {
-                    // camara primera persona
-                    Vector3 desf = new Vector3(0, 20, 0);
-                    View = Matrix.CreateLookAt(player.Position+ desf, player.Position + desf + player.Direction, new Vector3(0, 1, 0));
-                    if (recording)
-                    {
-                        rLookFrom[cant_frames % MAX_FRAMES] = player.Position;
-                        rLookAt[cant_frames % MAX_FRAMES] = player.Position + player.Direction;
-                        ++cant_frames;
-                    }
-
-                    // primera persona
-                    var camPos = player.Position + player.Direction * 0 + desf;
-                    //View = Matrix.CreateLookAt(camPos, camPos + player.Direction * 1000 , new Vector3(0, 1, 0));
-                    View = Matrix.CreateLookAt(player.Position - player.Direction * 50 + desf, player.Position + player.Direction * 10 + desf, new Vector3(0, 1, 0));
-
-                    // 3era persona
-                    //View = Matrix.CreateLookAt(player.Position - player.Direction * 250 + desf, player.Position + player.Direction * 10 + desf, new Vector3(0, 1, 0));
-                }
+                // camara primera persona
+                // la pos.Y = pos suelo + soldier_height/2 
+                // pos camara = pos.Y + soldier_height/2  - epsilon (en pulgadas)
+                Vector3 desf = new Vector3(0, soldier_height/2-5, 0);
+                camPosition = player.Position + player.Direction * 0 + desf;
+                View = Matrix.CreateLookAt(camPosition, camPosition + player.Direction * 100 , new Vector3(0, 1, 0));
+                    
             }
 
+
+            
             base.Update(gameTime);
         }
 
@@ -483,88 +316,56 @@ namespace TGC.MonoGame.TP
             GraphicsDevice.RasterizerState = RasterizerState.CullNone;
             GraphicsDevice.Clear(Color.Black);
 
-            /*
-			RasterizerState rasterizerState = new RasterizerState();
-			rasterizerState.FillMode = FillMode.WireFrame;
-			GraphicsDevice.RasterizerState = rasterizerState;
-			*/
+            // escenario
+            scene.Draw(Matrix.Identity, View, Projection);
 
-            if (ver_modelo)
+            var world = Matrix.CreateRotationY(weapon_angle * MathF.PI / 180.0f) *
+                        Matrix.CreateTranslation(weapon_desf + 
+                            new Vector3(0,0,MathF.Sin(player.dist*0.01f)))*
+                        CalcularMatrizOrientacion(1.0f, camPosition, player.Direction);
+            ak47.Draw(GraphicsDevice, EffectSmd, world, View, Projection);
+
+
+
+            for (int i = 0; i < MAX_ENEMIGOS; ++i)
             {
-                // modelo animado
-                //SkinnedModelEffect.Parameters["ModelTexture"].SetValue(CharacterTexture);
-                ModelInstance[0].Draw(GraphicsDevice, SkinnedModelEffect, View, Projection);
-            }
-            else
-            if (ver_mesh)
-            {
-                // mesh
-                EffectMesh.CurrentTechnique = EffectMesh.Techniques["TextureDrawing"];
-                mesh.Draw(GraphicsDevice, EffectMesh, Matrix.Identity, View, Projection);
-            }
-            else
-            {
-                // escenario
-                scene.Draw(Matrix.Identity, View, Projection);
-
-                /*
-                // modelo animado
-                for (int i = 0; i < MAX_ENEMIGOS; ++i)
-                {
-                    ModelInstance[i].Transformation = CalcularMatrizOrientacion(0.5f, enemigo[i].Position - new Vector3(0, 50, 0), -enemigo[i].Direction);
-                    ModelInstance[i].Draw(GraphicsDevice, SkinnedModelEffect, View, Projection);
-                }*/
-
-                /*
-                // dibujo al jugador 
-                ModelInstance[0].Transformation = CalcularMatrizOrientacion(-0.45f, player.Position - new Vector3(0, 50, 0), -player.Direction);
-                ModelInstance[0].Draw(GraphicsDevice, SkinnedModelEffect, View, Projection);
-                // y el arma
-                EffectMesh.CurrentTechnique = EffectMesh.Techniques["TextureDrawing"];
-                // Matrix.CreateRotationY(weapon_angle*MathF.PI/180.0f)* 
-                var world = Matrix.CreateRotationY(weapon_angle * MathF.PI / 180.0f) * Matrix.CreateRotationX(MathF.PI / 2) *
-                        Matrix.CreateScale(-1 , 1, 1 ) * Matrix.CreateTranslation(weapon_desf)*
-                    ModelInstance[0].MeshInstances[0].BonesOffsets[27] * 
-                    ModelInstance[0].Transformation;
-                rifle.Draw(GraphicsDevice, EffectMesh,Matrix.CreateScale(3)*world, View, Projection);
-                */
-                tgcLogo.Draw(Matrix.CreateScale(2.0f)*
-                    Matrix.CreateRotationY(MathHelper.Pi*(float)gameTime.TotalGameTime.TotalSeconds*0.5f)
-                        *Matrix.CreateTranslation(3500,665,5900), View, Projection);
-
+                world = Matrix.CreateRotationY(MathF.PI / 2.0f) *
+                    CalcularMatrizOrientacion(1, enemigo[i].Position - new Vector3(0, soldier_height/2, 0), enemigo[i].Direction);
+                soldier.Draw(GraphicsDevice, EffectSmd, world, View, Projection);
             }
 
-            //float t = scene.intersectSegment(posPlayer, posPlayer - new Vector3(0, 1000, 0))*1000;
+            tgcLogo.Draw(Matrix.CreateScale(2.0f)*
+                Matrix.CreateRotationY(MathHelper.Pi*(float)gameTime.TotalGameTime.TotalSeconds*0.5f)
+                    *Matrix.CreateTranslation(3500,665,5900), View, Projection);
+
             spriteBatch.Begin();
-            //spriteBatch.DrawString(font, "Subset:"+scene.current_subset+
-            //"  " + scene.subset[scene.current_subset].image_name, new Vector2(10, 10), Color.YellowGreen);
-            //spriteBatch.DrawString(font, "X:"+weapon_desf.X + "  Y:" + weapon_desf.Y + "  Z:" + weapon_desf.Z +
-            //    "  Angle="+weapon_angle ,new Vector2(10, 10), Color.YellowGreen);
+            spriteBatch.DrawString(font, "X:"+weapon_desf.X + "  Y:" + weapon_desf.Y + "  Z:" + weapon_desf.Z +
+                "  Angle="+weapon_angle ,new Vector2(10, 50), Color.YellowGreen);
             if (recording)
                 spriteBatch.DrawString(font, "R", new Vector2(10, 10), Color.YellowGreen);
 
-            if (!ver_mesh && !ver_modelo)
+            MouseState state = Mouse.GetState();
+            var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
+            var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
+            scene.intersectSegment(p0, p1, out ip_data ip);
+            if (ip.nro_face != -1)
             {
-                MouseState state = Mouse.GetState();
-                var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
-                var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
-                scene.intersectSegment(p0, p1, out ip_data ip);
-                if (ip.nro_face != -1)
+                var face = scene.g_faces[ip.nro_face];
+                if (face.nro_modelo >= 0)
                 {
-                    var face = scene.g_faces[ip.nro_face];
-                    if (face.nro_modelo >= 0)
-                    {
-                        var modelo = scene.modelos[face.nro_modelo];
-                        var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
-                        spriteBatch.DrawString(font,  mesh.name, new Vector2(10, 50), Color.YellowGreen);
-                    }
+                    var modelo = scene.modelos[face.nro_modelo];
+                    var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
+                    /*spriteBatch.DrawString(font,  mesh.name+
+                            "  dx=" +mesh.size.X + "dy= " + mesh.size.Y + " dz=" + mesh.size.Z
+                        , new Vector2(10, 50), Color.YellowGreen);*/
                 }
-                int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
-                spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
-                spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
-                        new Vector2(10, 100), Color.YellowGreen);
             }
-
+            int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
+            spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
+            if(!scene.usar_smd)
+                spriteBatch.DrawString(font, "usando mesh MDL", new Vector2(10, 10), Color.YellowGreen);
+            spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
+                    new Vector2(10, 100), Color.YellowGreen);
             spriteBatch.End();
  
             base.Draw(gameTime);
@@ -643,3 +444,5 @@ namespace TGC.MonoGame.TP
         }
     }
 }
+
+

@@ -79,6 +79,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	float kd = abs(dot(N, L))*0.6 + 0.3;
 	clr.rgb *= kd;
 	return clr ;
+	//return float4(N, 1);
 }
 
 float4 SpritePS(VertexShaderOutput input) : COLOR

@@ -132,7 +132,7 @@ namespace TGC.MonoGame.TP
 		public VertexBuffer bbVertexBuffer;
 		public int cant_debug_bb = 0;
 
-		public bool usar_smd = false;
+		public bool usar_smd = true;
 
 		public int current_subset = 6;
 		public bool mostrar_tools = false;

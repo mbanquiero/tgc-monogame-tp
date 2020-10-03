@@ -13,6 +13,7 @@
     <Compile Remove="CSkinMesh.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="Content\Effects\SkinnedModelEffect.fx" />
     <None Remove="Icon.ico" />
     <None Remove="Icon.bmp" />
   </ItemGroup>

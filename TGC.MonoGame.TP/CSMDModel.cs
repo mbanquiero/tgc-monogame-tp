@@ -22,14 +22,12 @@ namespace TGC.MonoGame.TP
 
 	public class smd_bone_anim
 	{
-		public int id_bone;
 		public Vector3 Position;
 		public Vector3 Rotation;
 	};
 
 	public class smd_frame
 	{
-		public int cant_bone_animations;
 		public smd_bone_anim[]bone_animations = new smd_bone_anim[CSMDModel.MAX_BONES];
 	};
 
@@ -38,6 +36,8 @@ namespace TGC.MonoGame.TP
 	{
 		public String name;
 		public int cant_frames;
+		public float frameRate = 30.0f;
+		public bool in_site = false;
 		public smd_frame[]frames = new smd_frame[CSMDModel.MAX_FRAMES];
 	};
 
@@ -83,14 +83,19 @@ namespace TGC.MonoGame.TP
 
 	public class CSMDModel
 	{
+		public const int MAX_ANIMATION = 100;
 		public const int MAX_BONES = 100;
 		public const int MAX_FRAMES = 256;
 		public int cant_bones;
 		public smd_bone[] bones;
-		public smd_animation anim1;
-		public smd_animation p_anim = null;
+		public int cant_animations = 0;
+		public smd_animation []anim = new smd_animation[MAX_ANIMATION];
+		public int cur_anim;
 		public int cur_frame;
 		public Matrix[] matBoneSpace = new Matrix[MAX_BONES];
+		public float currentTime = 0f;
+		public float speed;
+
 
 		public int cant_cdmaterials;
 		public String[] cdmaterials;
@@ -109,12 +114,23 @@ namespace TGC.MonoGame.TP
 		public int cant_faces;
 
 
+
 		public GraphicsDevice device;
 		public ContentManager Content;
 		public VertexBuffer VertexBuffer;
 
 		public static CDebugBox debug_box = null;
 		public Effect debugEffect;
+
+		// metrica
+		public Matrix Metric = new Matrix(	0, -1, 0, 0,
+											0, 0,  1, 0,
+											1, 0, 0, 0,
+											0 ,0 , 0,1);
+		public Matrix invMetric = new Matrix(	0, 0,  1, 0,
+												-1, 0, 0, 0,
+												0, 1, 0 , 0,
+												0 , 0, 0, 1);
 
 
 		public CSMDModel(string fname, GraphicsDevice p_device, ContentManager p_content, string p_folder)
@@ -166,13 +182,16 @@ namespace TGC.MonoGame.TP
 				rta = cargar_smd(folder+smd_name);
             }
 
+			// cargo las animaciones
+
+
 			return rta;
         }
 
 
-		public bool cargar_smd(String name)
+		public bool cargar_smd(String fname)
 		{
-			var fp = new System.IO.StreamReader(name);
+			var fp = new System.IO.StreamReader(fname);
 
 			var buffer = fp.ReadLine().TrimStart();
 			while (!buffer.StartsWith("nodes"))
@@ -247,41 +266,33 @@ namespace TGC.MonoGame.TP
 					string[] tokens = buffer.Split(' ');
 					int id = int.Parse(tokens[0]);
 
+					Vector3 P = transform(new Vector3(atof(tokens[1]), atof(tokens[2]), atof(tokens[3])), Metric);
+					Vector3 N = transform(new Vector3(atof(tokens[4]), atof(tokens[5]), atof(tokens[6])), Metric);
 
-					var z = atof(tokens[1]);
-					var x = -atof(tokens[2]);
-					var y = atof(tokens[3]);
-
-					/*
-					var x = vertices[cant_v].Position.Z = atof(tokens[1]);
-					var y = vertices[cant_v].Position.X = atof(tokens[2]);
-					var z = vertices[cant_v].Position.Y = atof(tokens[3]);
-					*/
-
-					vertices[cant_v].Position.X = x;
-					vertices[cant_v].Position.Y = y;
-					vertices[cant_v].Position.Z = z;
-					vertices[cant_v].Normal.X = atof(tokens[4]);
-					vertices[cant_v].Normal.Y = atof(tokens[5]);
-					vertices[cant_v].Normal.Z = atof(tokens[6]);
+					vertices[cant_v].Position.X = P.X;
+					vertices[cant_v].Position.Y = P.Y;
+					vertices[cant_v].Position.Z = P.Z;
+					vertices[cant_v].Normal.X = N.X;
+					vertices[cant_v].Normal.Y = N.Y;
+					vertices[cant_v].Normal.Z = N.Z;
 					vertices[cant_v].TextureCoordinate.X = atof(tokens[7]);
 					vertices[cant_v].TextureCoordinate.Y = -atof(tokens[8]);
 					vertices[cant_v].BlendIndices.X = id;
 					vertices[cant_v].BlendWeight.X = 1;
 					++cant_v;
 
-					if (x < min_x)
-						min_x = x;
-					if (y < min_y)
-						min_y = y;
-					if (z < min_z)
-						min_z = z;
-					if (x > max_x)
-						max_x = x;
-					if (y > max_y)
-						max_y = y;
-					if (z > max_z)
-						max_z = z;
+					if (P.X < min_x)
+						min_x = P.X;
+					if (P.Y < min_y)
+						min_y = P.Y;
+					if (P.Z < min_z)
+						min_z = P.Z;
+					if (P.X > max_x)
+						max_x = P.X;
+					if (P.Y > max_y)
+						max_y = P.Y;
+					if (P.Z > max_z)
+						max_z = P.Z;
 
 				}
 				cur_subset.cant_items++;
@@ -333,13 +344,13 @@ namespace TGC.MonoGame.TP
 			return true;
 		}
 
-		public smd_animation cargar_ani(String name)
+		public void cargar_ani(String ani_folder, String ani_name)
 		{
-			var anim = new smd_animation();
-			anim.name = name;
-			anim.cant_frames = 0;
+			smd_animation p_anim = anim[cur_anim = cant_animations++] = new smd_animation();
+			p_anim.name = ani_name;
+			p_anim.cant_frames = 0;
 
-			var fp = new System.IO.StreamReader(name);
+			var fp = new System.IO.StreamReader(folder+ ani_folder+ "\\" + ani_name+".smd");
 			fp.ReadLine().TrimStart();          // version 1
 			fp.ReadLine().TrimStart();          // nodes
 			var buffer = fp.ReadLine().TrimStart();
@@ -349,8 +360,7 @@ namespace TGC.MonoGame.TP
 
 			fp.ReadLine().TrimStart();					// time 0
 
-			smd_frame frame = anim.frames[anim.cant_frames++] = new smd_frame();
-			frame.cant_bone_animations = 0;
+			smd_frame frame = p_anim.frames[p_anim.cant_frames++] = new smd_frame();
 
 			buffer = fp.ReadLine().TrimStart();          // primer item 
 			while (!buffer.StartsWith("end"))
@@ -359,8 +369,7 @@ namespace TGC.MonoGame.TP
 				int id = int.Parse(tokens[0]);
 				if (id >= 0 && id < cant_bones)
 				{
-					smd_bone_anim bone_anim = frame.bone_animations[frame.cant_bone_animations++] = new smd_bone_anim();
-					bone_anim.id_bone = id;
+					smd_bone_anim bone_anim = frame.bone_animations[id] = new smd_bone_anim();
 					bone_anim.Position.X = atof(tokens[1]);
 					bone_anim.Position.Y = atof(tokens[2]);
 					bone_anim.Position.Z = atof(tokens[3]);
@@ -371,13 +380,47 @@ namespace TGC.MonoGame.TP
 				buffer = fp.ReadLine().TrimStart();
 				if (buffer.StartsWith("time"))
 				{
-					frame = anim.frames[anim.cant_frames++] = new smd_frame();
-					frame.cant_bone_animations = 0;
+					// creo el nuevo frame
+					frame = p_anim.frames[p_anim.cant_frames++] = new smd_frame();
 					buffer = fp.ReadLine().TrimStart();
 				}
 			}
+
+			// completo los frames que faltan (si fue creado con el crawbar no faltara ninguno)
+			// para ello hereda los frame anterior
+			// de paso computo la distancia total para aprximar la velocidad 
+			float dm = 0;
+			for (var f=0;f<p_anim.cant_frames;++f)
+			{
+				for (var i = 0; i < cant_bones; ++i)
+				{
+					if (p_anim.frames[f].bone_animations[i] == null)
+					{
+						smd_bone_anim bone_anim = p_anim.frames[f].bone_animations[i] = new smd_bone_anim();
+						if (f>0)
+						{
+							// heredo del anterior
+							bone_anim.Position = p_anim.frames[f - 1].bone_animations[i].Position;
+							bone_anim.Rotation = p_anim.frames[f - 1].bone_animations[i].Rotation;
+						}
+						else
+						{
+							// cero x defecto
+							bone_anim.Position = Vector3.Zero;
+							bone_anim.Rotation = Vector3.Zero;
+						}
+					}
+				}
+				float dist = (p_anim.frames[0].bone_animations[0].Position - p_anim.frames[f].bone_animations[0].Position).Length();
+				if (dist > dm)
+					dm = dist;
+
+			}
+
+			float time = p_anim.cant_frames / p_anim.frameRate;
+			speed = dm / time;
+
 			fp.Close();
-			return anim;
 		}
 
 
@@ -391,7 +434,8 @@ namespace TGC.MonoGame.TP
 			return C;
 		}
 
-		public Matrix rotation(Vector3 rot)
+
+		public Quaternion toQuaternion(Vector3 rot)
 		{
 			// lo paso a quaternion
 			float an_x = rot.Y * 0.5f;
@@ -409,6 +453,61 @@ namespace TGC.MonoGame.TP
 			float crXcp = cr * cp, srXsp = sr * sp;
 			float z = crXcp * sy - srXsp * cy; // Z
 			float w = crXcp * cy + srXsp * sy; // W (real component)
+			return new Quaternion(x, y, z, w);
+		}
+
+		public Matrix toMatrix(Quaternion q)
+		{
+			var x = q.X;
+			var y = q.Y;
+			var z = q.Z;
+			var w = q.W;
+			Matrix C;
+			C.M11 = 1.0f - 2.0f * y * y - 2.0f * z * z;
+			C.M21 = 2.0f * x * y + 2.0f * w * z;
+			C.M31 = 2.0f * x * z - 2.0f * w * y;
+
+			C.M12 = 2.0f * x * y - 2.0f * w * z;
+			C.M22 = 1.0f - 2.0f * x * x - 2.0f * z * z;
+			C.M32 = 2.0f * y * z + 2.0f * w * x;
+
+			C.M13 = 2.0f * x * z + 2.0f * w * y;
+			C.M23 = 2.0f * y * z - 2.0f * w * x;
+			C.M33 = 1.0f - 2.0f * x * x - 2.0f * y * y;
+
+
+			C.M41 = 0; C.M42 = 0; C.M43 = 0; C.M44 = 1;
+			C.M14 = 0; C.M24 = 0; C.M34 = 0;
+
+			return C;
+		}
+
+
+		public Matrix rotation(Vector3 rot)
+		{
+			return toMatrix(toQuaternion(rot));
+		}
+
+
+		public Matrix rotation2(Vector3 rot)
+		{
+			// lo paso a quaternion
+			float an_x = rot.Y * 0.5f;
+			float an_y = rot.Z * 0.5f;
+			float an_z = rot.X * 0.5f;
+			float sy = MathF.Sin(an_y);
+			float cy = MathF.Cos(an_y);
+			float sp = MathF.Sin(an_x);
+			float cp = MathF.Cos(an_x);
+			float sr = MathF.Sin(an_z);
+			float cr = MathF.Cos(an_z);
+			float srXcp = sr * cp, crXsp = cr * sp;
+			float x = srXcp * cy - crXsp * sy; // X
+			float y = crXsp * cy + srXcp * sy; // Y
+			float crXcp = cr * cp, srXsp = sr * sp;
+			float z = crXcp * sy - srXsp * cy; // Z
+			float w = crXcp * cy + srXsp * sy; // W (real component)
+
 
 			Matrix C;
 			C.M11 = 1.0f - 2.0f * y * y - 2.0f * z * z;
@@ -439,6 +538,7 @@ namespace TGC.MonoGame.TP
 			r.Z = T.M31 * p.X + T.M32 * p.Y + T.M33 * p.Z + T.M34;
 			return r;
 		}
+		
 
 
 		public void setupBones()
@@ -458,31 +558,57 @@ namespace TGC.MonoGame.TP
 				bones[i].matInversePose = Matrix.Invert(T);
 			}
 		}
-
-		public void setAnimation(smd_animation anim)
+		public void update(float elapsedTime)
 		{
-			p_anim = anim;
-			updatesBones(0);
+			currentTime += elapsedTime;
+			updateSkeleton();
 		}
 
-		public void updatesBones(int frame)
+
+		public void setAnimation(int n)
 		{
+			if(n>=0 && n<cant_animations)
+			{
+				cur_anim = n;
+				smd_animation p_anim = anim[cur_anim];
+				if (p_anim == null)
+					return;
+				updateSkeleton();
+			}
+		}
+
+		public void updateSkeleton(	)
+		{
+			smd_animation p_anim = anim[cur_anim];
 			if (p_anim == null)
 				return;
-			cur_frame = frame = frame % p_anim.cant_frames;
-			for (int i = 0; i < p_anim.frames[frame].cant_bone_animations; ++i)
+
+			float currentFrameF = currentTime * p_anim.frameRate;
+			float resto = currentFrameF - MathF.Floor(currentFrameF);
+			int frame1 = ((int)MathF.Floor(currentFrameF)) % p_anim.cant_frames;
+			int frame2 = (frame1+1) % p_anim.cant_frames;
+
+			for (int i = 0; i < cant_bones; ++i)
 			{
-				smd_bone_anim p_bone_anim = p_anim.frames[frame].bone_animations[i];
-				int id = p_bone_anim.id_bone;
-				Matrix T = traslation(p_bone_anim.Position) * rotation(p_bone_anim.Rotation);
-				int k = bones[id].parent;
+				smd_bone_anim p_bone_anim1 = p_anim.frames[frame1].bone_animations[i];
+				smd_bone_anim p_bone_anim2 = p_anim.frames[frame2].bone_animations[i];
+				Vector3 Position = i==0 && p_anim.in_site ?
+					p_anim.frames[0].bone_animations[0].Position : 
+					p_bone_anim1.Position * (1-resto) + p_bone_anim2.Position * resto;
+				Quaternion q1 = toQuaternion(p_bone_anim1.Rotation);
+				Quaternion q2 = toQuaternion(p_bone_anim2.Rotation);
+				Quaternion q = Quaternion.Lerp(q1, q2, resto);
+				Matrix T = traslation(Position) * toMatrix(q);
+				int k = bones[i].parent;
 				if (k != -1)
 				{
 					T = bones[k].Transform * T;
 				}
-				bones[id].Transform = T;
-				bones[id].Position = transform(Vector3.Zero, T);
+				bones[i].Transform = T;
+				bones[i].Position = transform(Vector3.Zero, T);
 			}
+
+
 
 		}
 
@@ -543,7 +669,7 @@ namespace TGC.MonoGame.TP
 			//Precalcular la multiplicación para llevar a un vertice a Bone-Space y luego transformarlo segun el hueso
 			for (var i = 0; i < cant_bones; i++)
 			{
-				matBoneSpace[i] = Matrix.Transpose(bones[i].Transform * bones[i].matInversePose);
+				matBoneSpace[i] = Matrix.Transpose(Metric * bones[i].Transform * bones[i].matInversePose * invMetric);
 			}
 		}
 
@@ -554,8 +680,8 @@ namespace TGC.MonoGame.TP
 			Effect.Parameters["World"].SetValue(World);
 			Effect.Parameters["View"].SetValue(View);
 			Effect.Parameters["Projection"].SetValue(Proj);
-
-			if(p_anim!=null)
+			smd_animation p_anim = anim[cur_anim];
+			if (p_anim!=null)
             {
 				// modelo animado
 				updateMeshVertices();

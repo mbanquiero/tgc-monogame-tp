@@ -24,9 +24,9 @@ struct VertexShaderInput
 struct VertexShaderOutput
 {
     float4 Position : SV_POSITION;
-    float3 Normal : NORMAL0;
     float2 Uv : TEXCOORD0;
-    float4 Color : COLOR0;
+    float3 WorldPos: TEXCOORD1;
+    float3 Normal : TEXCOORD2;
 };
 
 texture ModelTexture;
@@ -41,52 +41,68 @@ sampler2D textureSampler = sampler_state
 
 float Time = 0;
 
-VertexShaderOutput MainVS(in VertexShaderInput input)
+VertexShaderOutput StaticMeshVS(in VertexShaderInput input)
+{
+    VertexShaderOutput output = (VertexShaderOutput)0;
+    float4 worldPosition = mul(input.Position, World);
+    float4 viewPosition = mul(worldPosition, View);
+    output.Position = mul(viewPosition, Projection);
+    output.Normal = mul(input.Normal, World);
+    output.Uv = input.Uv;
+    output.WorldPos = worldPosition.xyz;
+    return output;
+}
+
+
+VertexShaderOutput SkinnedMeshVS(in VertexShaderInput input)
 {
     VertexShaderOutput output = (VertexShaderOutput)0;
 
 
     float4 skinnedPosition = float4(0.0, 0.0, 0.0, 0.0);
     float4 skinnedNormal = float4(0.0, 0.0, 0.0, 0.0);
-    
     int index = input.blendIndices[0];
     skinnedPosition += mul(input.Position, bonesMatWorldArray[index]) * input.blendWeights[0];
 
-    /*
-    index = input.blendIndices[1];
-    skinnedPosition += mul(input.Position, gBonesOffsets[index]) * input.blendWeights[1];
-    index = input.blendIndices[2];
-    skinnedPosition += mul(input.Position, gBonesOffsets[index]) * input.blendWeights[2];
-    index = input.blendIndices[3];
-    skinnedPosition += mul(input.Position, gBonesOffsets[index]) * input.blendWeights[3];
-    */
-
-//    skinnedPosition = input.Position;
-
-    // Project position
     float4 worldPosition = mul(skinnedPosition, World);
     float4 viewPosition = mul(worldPosition, View);
     output.Position = mul(viewPosition, Projection);
 
-    // Propagate texture coordinates
     output.Normal = mul(input.Normal, World);
-    output.Uv = float2(input.Uv.x , -input.Uv.y);
+    output.Uv = input.Uv;
+    output.WorldPos = worldPosition.xyz;
 
     return output;
 }
 
+
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
-    float4 textureColor = tex2D(textureSampler, input.Uv);
-    textureColor.r = 1;
-    return textureColor;
+    float4 clr = tex2D(textureSampler, input.Uv);
+    if (clr.a < 0.05)
+        discard;
+    float3 LightPos = float3(1000, 5000, 1000);
+    float3 L = normalize(LightPos - input.WorldPos);
+    float3 N = normalize(input.Normal);
+    float kd = abs(dot(N, L)) * 0.6 + 0.3;
+    clr.rgb *= kd;
+    return clr;
 }
 
-technique BasicColorDrawing
+technique StaticMesh
 {
     pass P0
     {
-        VertexShader = compile VS_SHADERMODEL MainVS();
+        VertexShader = compile VS_SHADERMODEL StaticMeshVS();
+        PixelShader = compile PS_SHADERMODEL MainPS();
+    }
+};
+
+technique SkinnedMesh
+{
+    pass P0
+    {
+        VertexShader = compile VS_SHADERMODEL SkinnedMeshVS();
         PixelShader = compile PS_SHADERMODEL MainPS();
     }
 };
