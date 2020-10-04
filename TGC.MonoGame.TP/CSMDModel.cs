@@ -38,6 +38,7 @@ namespace TGC.MonoGame.TP
 		public int cant_frames;
 		public float frameRate = 30.0f;
 		public bool in_site = false;
+		public bool loop = true;
 		public smd_frame[]frames = new smd_frame[CSMDModel.MAX_FRAMES];
 	};
 
@@ -558,13 +559,13 @@ namespace TGC.MonoGame.TP
 				bones[i].matInversePose = Matrix.Invert(T);
 			}
 		}
+		
 		public void update(float elapsedTime)
 		{
 			currentTime += elapsedTime;
 			updateSkeleton();
 		}
-
-
+		
 		public void setAnimation(int n)
 		{
 			if(n>=0 && n<cant_animations)
@@ -585,8 +586,21 @@ namespace TGC.MonoGame.TP
 
 			float currentFrameF = currentTime * p_anim.frameRate;
 			float resto = currentFrameF - MathF.Floor(currentFrameF);
-			int frame1 = ((int)MathF.Floor(currentFrameF)) % p_anim.cant_frames;
-			int frame2 = (frame1+1) % p_anim.cant_frames;
+			int frame1 = (int)MathF.Floor(currentFrameF);
+			int frame2 = frame1 + 1;
+
+			if(p_anim.loop)
+			{
+				frame1 = frame1 % p_anim.cant_frames;
+				frame2 = frame2 % p_anim.cant_frames;
+			}
+			else
+			{
+				if (frame1 > p_anim.cant_frames - 1)
+					frame1 = p_anim.cant_frames - 1;
+				if (frame2 > p_anim.cant_frames - 1)
+					frame2 = p_anim.cant_frames - 1;
+			}
 
 			for (int i = 0; i < cant_bones; ++i)
 			{
@@ -674,6 +688,7 @@ namespace TGC.MonoGame.TP
 		}
 
 
+
 		public void Draw(GraphicsDevice graphicsDevice, Effect Effect,Matrix World, Matrix View, Matrix Proj, int L = 0)
 		{
 			graphicsDevice.SetVertexBuffer(VertexBuffer);
@@ -688,17 +703,7 @@ namespace TGC.MonoGame.TP
 				Effect.Parameters["bonesMatWorldArray"].SetValue(matBoneSpace);
 			}
 
-			/*
-			Vector3 s = new Vector3(1, 1, 1) * 0.1f;
-			for (int i = 0; i < cant_bones; ++i)
-			{
-				debug_box.Draw(device, bones[i].Position - s, bones[i].Position + s, debugEffect, World, View, Proj);
-				int k = bones[i].parent;
-				if (k != -1)
-				{
-					CDebugLine.Draw(graphicsDevice, bones[k].Position, bones[i].Position, debugEffect, World, View, Proj);
-				}
-			}*/
+
 
 			// L ==0  opacos , ==1 traslucidos
 			for (var i = 0; i < cant_subsets; i++)
@@ -717,6 +722,36 @@ namespace TGC.MonoGame.TP
 					}
 				}
 			}
+
+
+			/*
+			Vector3 s = new Vector3(1, 1, 1) * 0.1f;
+			if (debugEffect != null)
+				for (int i = 0; i < cant_bones; ++i)
+				{
+					var p0 = Vector3.Transform(bones[i].Position, invMetric);
+					debug_box.Draw(device, p0 - s, p0 + s, debugEffect, World, View, Proj);
+					int k = bones[i].parent;
+					if (k != -1)
+					{
+						var p1 = Vector3.Transform(bones[k].Position, invMetric);
+						CDebugLine.Draw(graphicsDevice, p0, p1, debugEffect, World, View, Proj);
+					}
+				}
+			*/
+			/*
+			if (debugEffect != null)
+			{
+				Vector3 s = new Vector3(1, 1, 1) * 20;
+				int cant_hit_points = 2;
+				int[] hit_pt = { 0, 12 };
+				for (int i = 0; i < cant_hit_points; ++i)
+				{
+					var p0 = Vector3.Transform(bones[hit_pt[i]].Position, invMetric);
+					debug_box.Draw(device, p0 - s, p0 + s, debugEffect, World, View, Proj);
+				}
+			}*/
+
 		}
 
 

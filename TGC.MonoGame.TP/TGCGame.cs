@@ -46,6 +46,7 @@ namespace TGC.MonoGame.TP
         public bool[] keyDown = new bool[256];
 
         public bool fisica = true;
+        public bool pause = false;
 
         // grabar gamelay
         public bool recording = false;
@@ -64,6 +65,9 @@ namespace TGC.MonoGame.TP
         // mouse captured
         public int mouse_ox, mouse_oy;
 
+        public CDebugBox debug_box;
+
+
         /// <summary>
         ///     Constructor del juego.
         /// </summary>
@@ -75,7 +79,7 @@ namespace TGC.MonoGame.TP
             // Carpeta raiz donde va a estar toda la Media.
             Content.RootDirectory = "Content";
             // Hace que el mouse sea visible.
-            IsMouseVisible = true;
+            IsMouseVisible = false;
 
         }
 
@@ -120,7 +124,6 @@ namespace TGC.MonoGame.TP
             weapon_name = "weapons\\v_rif_galil";
             String ani_folder = weapon_name + "_anims";
             ak47 = new CSMDModel(weapon_name, GraphicsDevice, Content, cs_folder);
-            ak47.debugEffect = Content.Load<Effect>("Effects/BasicShader");
             // cargo las animaciones
             ak47.cargar_ani(ani_folder, "draw");
             ak47.cargar_ani(ani_folder, "idle");
@@ -132,11 +135,12 @@ namespace TGC.MonoGame.TP
 
             // Soldado
             soldier = new CSMDModel("player\\ct_sas", GraphicsDevice, Content, cs_folder);
-            soldier.cargar_ani("player\\ct_sas_anims", "ragdoll");
+            soldier.cargar_ani("player\\cs_player_shared_anims", "Death1");
+            soldier.anim[0].loop = false;
             soldier.cargar_ani("player\\cs_player_shared_anims", "a_WalkN");
             soldier.anim[1].in_site = true;
-            soldier.setAnimation(1);
             soldier_height = soldier.size.Y;
+            soldier.debugEffect = EffectMesh;
 
 
             // huevo de pascuas
@@ -145,6 +149,7 @@ namespace TGC.MonoGame.TP
             modelEffect.DiffuseColor = Color.DarkBlue.ToVector3();
             modelEffect.EnableDefaultLighting();
 
+            debug_box = new CDebugBox(GraphicsDevice);
 
             scene = new CBspFile(map_name, GraphicsDevice, Content);
             player = new CPlayer(scene , this);
@@ -152,20 +157,21 @@ namespace TGC.MonoGame.TP
             Random rnd = new Random();
             for (int i = 0; i < MAX_ENEMIGOS; ++i)
             {
-                enemigo[i] = new CEnemy(scene , this);
+                enemigo[i] = new CEnemy(scene , this , soldier);
                 enemigo[i].Position = new Vector3(rnd.Next((int)scene.p_min.X, (int)scene.p_max.X), 
                                 scene.p_max.Y, rnd.Next((int)scene.p_min.Z, (int)scene.p_max.Z));
                 enemigo[i].Position = new Vector3(7242+ rnd.Next(-300,300), -493, 6746+ rnd.Next(-300, 300));
 
                 float an = rnd.Next(0, 360)*MathF.PI/180.0f;
                 enemigo[i].Direction = new Vector3(MathF.Cos(an), 0, MathF.Sin(an));
+                enemigo[i].currentTime = rnd.Next(100);
+                enemigo[i].currentAnimation = 1;
 
             }
-            
+
             enemigo[0].PrevPosition = enemigo[0].Position = new Vector3(6447, -800, 6276);
             //enemigo[0].PrevPosition = enemigo[0].Position = new Vector3(7242, -400, 5116);
             enemigo[0].Direction = new Vector3(0, 0, -1);
-            enemigo[0].vel_lineal = soldier.speed;
 
             //player.Position = new Vector3(6447, -800, 6376);
             player.Position = scene.cg;
@@ -185,10 +191,6 @@ namespace TGC.MonoGame.TP
             float k = ak47.cur_anim >= 3 ? 10 : 1;
             ak47.update(elapsed_time * k);
 
-            for (int i=0;i<MAX_ENEMIGOS;++i)
-            {
-                soldier.update(elapsed_time);
-            }
 
             MouseState state = Mouse.GetState();
             if (keyState.IsKeyDown(Keys.Space))
@@ -221,9 +223,9 @@ namespace TGC.MonoGame.TP
             if (keyState.IsKeyDown(Keys.P))
             {
                 if (!keyDown[(int)Keys.P])
-                    playing = !playing;
+                    pause = !pause;
                 keyDown[(int)Keys.P] = true;
-                if (playing)
+                if (pause)
                     curr_frame = 0;
             }
             else
@@ -239,16 +241,10 @@ namespace TGC.MonoGame.TP
             else
                 keyDown[(int)Keys.S] = false;
 
-            player.ProcessInput(elapsed_time);
-
-            if (fisica)
-            {
-                player.UpdatePhysics(elapsed_time);
-            }
+            player.Update(elapsed_time);
 
             for (int i = 0; i < MAX_ENEMIGOS; ++i)
-                enemigo[i].UpdatePhysics(elapsed_time);
-
+                enemigo[i].Update(elapsed_time);
 
             if (keyState.IsKeyDown(Keys.LeftShift))
             {
@@ -264,7 +260,21 @@ namespace TGC.MonoGame.TP
             if (keyState.IsKeyDown(Keys.S)) weapon_angle-= 1;
 
             if (state.LeftButton == ButtonState.Pressed)
+            {
                 ak47.setAnimation(3);
+
+                // verifico si mato a algun enemigo
+                for (int i = 0; i < MAX_ENEMIGOS; ++i)
+                if(!enemigo[i].muerto)
+                {
+                    if (enemigo[i].colision(camPosition, player.Direction))
+                    {
+                        enemigo[i].muerto = true;
+                        enemigo[i].currentAnimation = 0;
+                        enemigo[i].currentTime = 0;
+                    }
+                }
+            }
             else
                 ak47.setAnimation(1);
 
@@ -329,14 +339,28 @@ namespace TGC.MonoGame.TP
 
             for (int i = 0; i < MAX_ENEMIGOS; ++i)
             {
-                world = Matrix.CreateRotationY(MathF.PI / 2.0f) *
-                    CalcularMatrizOrientacion(1, enemigo[i].Position - new Vector3(0, soldier_height/2, 0), enemigo[i].Direction);
-                soldier.Draw(GraphicsDevice, EffectSmd, world, View, Projection);
+                var e = enemigo[i];
+                e.computeHitpoints();
+                e.Draw(GraphicsDevice, EffectSmd, View, Projection);
+                //e.drawHitPoints(GraphicsDevice, debug_box, EffectMesh, View, Projection);
             }
 
             tgcLogo.Draw(Matrix.CreateScale(2.0f)*
                 Matrix.CreateRotationY(MathHelper.Pi*(float)gameTime.TotalGameTime.TotalSeconds*0.5f)
                     *Matrix.CreateTranslation(3500,665,5900), View, Projection);
+
+            /*
+            MouseState state = Mouse.GetState();
+            if (state.LeftButton == ButtonState.Pressed)
+            {
+                for (var i = 0; i < 10; ++i)
+                {
+                    var p1 = camPosition + player.Direction * 100 * i;
+                    var s = new Vector3(5, 5, 5);
+                    debug_box.Draw(GraphicsDevice, p1 - s, p1 + s, EffectMesh, Matrix.Identity, View, Projection);
+                }
+            }
+            */
 
             spriteBatch.Begin();
             spriteBatch.DrawString(font, "X:"+weapon_desf.X + "  Y:" + weapon_desf.Y + "  Z:" + weapon_desf.Z +
@@ -344,6 +368,7 @@ namespace TGC.MonoGame.TP
             if (recording)
                 spriteBatch.DrawString(font, "R", new Vector2(10, 10), Color.YellowGreen);
 
+            /*
             MouseState state = Mouse.GetState();
             var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
             var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
@@ -355,11 +380,26 @@ namespace TGC.MonoGame.TP
                 {
                     var modelo = scene.modelos[face.nro_modelo];
                     var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
-                    /*spriteBatch.DrawString(font,  mesh.name+
+                    spriteBatch.DrawString(font,  mesh.name+
                             "  dx=" +mesh.size.X + "dy= " + mesh.size.Y + " dz=" + mesh.size.Z
-                        , new Vector2(10, 50), Color.YellowGreen);*/
+                        , new Vector2(10, 50), Color.YellowGreen);
                 }
             }
+            */
+
+            /*
+            for (var i = 0; i < MAX_ENEMIGOS; ++i)
+            if(!enemigo[i].muerto)
+            {
+                var P = enemigo[i].hit_points[0].Position;
+                var dist = (camPosition - P).Length();
+                var Q = camPosition + player.Direction * dist;
+                var r = (Q - enemigo[0].hit_points[0].Position).Length();
+                spriteBatch.DrawString(font, "#" +i+ " Fire = (" + Q.X + " , " + Q.Y + " ," + Q.Z + ")" + "HitPpoint= (" + P.X + " , " + P.Y + " ," + P.Z + ") dist =" + r,
+                        new Vector2(10, 200+50*i), Color.YellowGreen);
+            }
+            */
+
             int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
             spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
             if(!scene.usar_smd)
@@ -367,7 +407,15 @@ namespace TGC.MonoGame.TP
             spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
                     new Vector2(10, 100), Color.YellowGreen);
             spriteBatch.End();
- 
+
+            CDebugLine.Draw(GraphicsDevice, new Vector3(-30,0,0.5f), new Vector3(30, 0, 0.5f),
+                    EffectMesh, Matrix.CreateScale(1.0f/(float)GraphicsDevice.Viewport.Width, 1.0f / (float)GraphicsDevice.Viewport.Height,1) , 
+                        Matrix.Identity, Matrix.Identity);
+            CDebugLine.Draw(GraphicsDevice, new Vector3(0, -30, 0.5f), new Vector3(0, 30, 0.5f),
+                    EffectMesh, Matrix.CreateScale(1.0f / (float)GraphicsDevice.Viewport.Width, 1.0f / (float)GraphicsDevice.Viewport.Height, 1),
+                        Matrix.Identity, Matrix.Identity);
+
+
             base.Draw(gameTime);
 
             if(playing)

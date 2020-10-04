@@ -82,5 +82,28 @@ namespace TGC.MonoGame.TP
 			col = p + t * (p - q);
 			return true;
 		}
+
+
+		public static bool intersectRaySphere(Vector3 p0, Vector3 dir, Vector3 pos, float r, out float t, out Vector3 q)
+		{
+			t = -1;
+			q = new Vector3();
+			var m = p0 - pos;
+			var b = Vector3.Dot(m, dir);
+			var c = Vector3.Dot(m, m) - r*r;
+			// Exit if r’s origin outside s (c > 0) and r pointing away from s (b > 0)
+			if (c > 0.0f && b > 0.0f) return false;
+			var discr = b * b - c;
+			// A negative discriminant corresponds to ray missing sphere
+			if (discr < 0.0f) return false;
+			// Ray now found to intersect sphere, compute smallest t value of intersection
+			t = -b - MathF.Sqrt(discr);
+			// If t is negative, ray started inside sphere so clamp t to zero
+			if (t < 0.0f) t = 0.0f;
+			q = p0 + t * dir;
+			return true;
+		}
+
+
 	}
 }

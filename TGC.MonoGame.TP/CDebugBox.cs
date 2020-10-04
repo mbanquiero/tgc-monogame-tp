@@ -75,7 +75,7 @@ namespace TGC.MonoGame.TP
             device.DepthStencilState = depthState;
             */
 
-            Matrix T = Matrix.CreateScale((p_max - p_min) * 0.5f) * Matrix.CreateTranslation((p_max + p_min) * 0.5f + World.Translation);
+            Matrix T = Matrix.CreateScale((p_max - p_min) * 0.5f) * Matrix.CreateTranslation((p_max + p_min) * 0.5f) * World;
             Effect.Parameters["World"].SetValue(T);
             Effect.Parameters["View"].SetValue(View);
             Effect.Parameters["Projection"].SetValue(Proj);
