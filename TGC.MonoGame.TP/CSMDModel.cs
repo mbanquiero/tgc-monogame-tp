@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -39,6 +38,7 @@ namespace TGC.MonoGame.TP
 		public float frameRate = 30.0f;
 		public bool in_site = false;
 		public bool loop = true;
+		public bool finished = false;
 		public smd_frame[]frames = new smd_frame[CSMDModel.MAX_FRAMES];
 	};
 
@@ -96,6 +96,7 @@ namespace TGC.MonoGame.TP
 		public Matrix[] matBoneSpace = new Matrix[MAX_BONES];
 		public float currentTime = 0f;
 		public float speed;
+		public int w_attachment = 0;
 
 
 		public int cant_cdmaterials;
@@ -588,8 +589,9 @@ namespace TGC.MonoGame.TP
 			float resto = currentFrameF - MathF.Floor(currentFrameF);
 			int frame1 = (int)MathF.Floor(currentFrameF);
 			int frame2 = frame1 + 1;
+			p_anim.finished = false;
 
-			if(p_anim.loop)
+			if (p_anim.loop)
 			{
 				frame1 = frame1 % p_anim.cant_frames;
 				frame2 = frame2 % p_anim.cant_frames;
@@ -597,7 +599,10 @@ namespace TGC.MonoGame.TP
 			else
 			{
 				if (frame1 > p_anim.cant_frames - 1)
+				{
 					frame1 = p_anim.cant_frames - 1;
+					p_anim.finished = true;
+				}
 				if (frame2 > p_anim.cant_frames - 1)
 					frame2 = p_anim.cant_frames - 1;
 			}

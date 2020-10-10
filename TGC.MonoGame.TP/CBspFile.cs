@@ -155,6 +155,7 @@ namespace TGC.MonoGame.TP
 		public const int MAX_SPRITES = 4096;
 		public int cant_sprites = 0;
 		public CSprite[] sprites = new CSprite[MAX_SPRITES];
+		public int spt_muzzle;
 
 		// modelos
 		public const int MAX_MODELOS = 4096;
@@ -276,6 +277,12 @@ namespace TGC.MonoGame.TP
 			//kd_tree = new KDTree(cant_faces, faces);
 			kd_tree = new KDTree(g_cant_faces, g_faces);
 			kd_tree.createKDTree();
+
+			// otros efectos
+			var sp = sprites[spt_muzzle = cant_sprites++] = new CSprite("effects\\muzzleflashx", device, Content);
+			sp.rendercolor = new Vector3(1, 1, 1);
+			sp.scale = 0.1f;
+			sp.renderamt = 1;
 
 		}
 
@@ -657,7 +664,7 @@ namespace TGC.MonoGame.TP
 							model = model.Replace("materials/", "").Replace(".vmt", "");
 							var p = sprites[cant_sprites++] = new CSprite(model,device,Content);
 							p.origin = origin;
-							p.scale = scale;
+							//p.scale = scale;
 							p.renderamt = renderamt;
 							p.rendercolor = rendercolor;
 							Debug.WriteLine(model + " " + origin + "  " + angles);

@@ -18,9 +18,6 @@ namespace TGC.MonoGame.TP
 
         public const string cs_folder = "C:\\Counter-Strike Source\\cstrike\\";
         public const string map_name = "cs_assault";
-        public String weapon_name = "weapons\\v_rif_ak47";
-        public Vector3 weapon_desf = new Vector3(-4,-1,-14);
-        public float weapon_angle = 80;
 
         public float fieldOfView = MathHelper.PiOver4;
         public float aspectRatio = 1;
@@ -35,6 +32,7 @@ namespace TGC.MonoGame.TP
 
         public Effect EffectMesh;
         public CBspFile scene;
+        public CSkybox skybox;
 
         public Model tgcLogo;
 
@@ -59,7 +57,7 @@ namespace TGC.MonoGame.TP
 
         // modelos
         public Effect EffectSmd;
-        public CSMDModel ak47;
+        public CWeapon weapon;
         public CSMDModel soldier;
 
         // mouse captured
@@ -121,17 +119,7 @@ namespace TGC.MonoGame.TP
             EffectSmd.CurrentTechnique = EffectSmd.Techniques["SkinnedMesh"];
 
             // Arma
-            weapon_name = "weapons\\v_rif_galil";
-            String ani_folder = weapon_name + "_anims";
-            ak47 = new CSMDModel(weapon_name, GraphicsDevice, Content, cs_folder);
-            // cargo las animaciones
-            ak47.cargar_ani(ani_folder, "draw");
-            ak47.cargar_ani(ani_folder, "idle");
-            ak47.cargar_ani(ani_folder, "reload");
-            ak47.cargar_ani(ani_folder, "shoot1");
-            ak47.cargar_ani(ani_folder, "shoot2");
-            ak47.cargar_ani(ani_folder, "shoot3");
-            ak47.setAnimation(2);
+            weapon = new CWeapon(this,GraphicsDevice, Content, cs_folder);
 
             // Soldado
             soldier = new CSMDModel("player\\ct_sas", GraphicsDevice, Content, cs_folder);
@@ -152,6 +140,9 @@ namespace TGC.MonoGame.TP
             debug_box = new CDebugBox(GraphicsDevice);
 
             scene = new CBspFile(map_name, GraphicsDevice, Content);
+
+            skybox = new CSkybox(GraphicsDevice);
+
             player = new CPlayer(scene , this);
 
             Random rnd = new Random();
@@ -188,9 +179,7 @@ namespace TGC.MonoGame.TP
             if (keyState.IsKeyDown(Keys.Escape))
                 Exit();                     //Salgo del juego.
 
-            float k = ak47.cur_anim >= 3 ? 10 : 1;
-            ak47.update(elapsed_time * k);
-
+            weapon.Update(elapsed_time);
 
             MouseState state = Mouse.GetState();
             if (keyState.IsKeyDown(Keys.Space))
@@ -232,52 +221,25 @@ namespace TGC.MonoGame.TP
                 keyDown[(int)Keys.P] = false;
 
 
-            if (keyState.IsKeyDown(Keys.S))
-            {
-                if (!keyDown[(int)Keys.S])
-                    scene.usar_smd = !scene.usar_smd;
-                keyDown[(int)Keys.S] = true;
-            }
-            else
-                keyDown[(int)Keys.S] = false;
-
             player.Update(elapsed_time);
 
             for (int i = 0; i < MAX_ENEMIGOS; ++i)
                 enemigo[i].Update(elapsed_time);
 
-            if (keyState.IsKeyDown(Keys.LeftShift))
+            if (weapon.firing())
             {
-                if (keyState.IsKeyDown(Keys.Up)) weapon_desf.Z += 1.1f;
-                if (keyState.IsKeyDown(Keys.Down)) weapon_desf.Z -= 1.1f;
-                if (keyState.IsKeyDown(Keys.Left)) weapon_desf.X += 1.1f;
-                if (keyState.IsKeyDown(Keys.Right)) weapon_desf.X -= 1.1f;
-
-            }
-            if (keyState.IsKeyDown(Keys.Q)) weapon_desf.Y += 1.1f;
-            if (keyState.IsKeyDown(Keys.A)) weapon_desf.Y -= 1.1f;
-            if (keyState.IsKeyDown(Keys.W)) weapon_angle+= 1;
-            if (keyState.IsKeyDown(Keys.S)) weapon_angle-= 1;
-
-            if (state.LeftButton == ButtonState.Pressed)
-            {
-                ak47.setAnimation(3);
-
                 // verifico si mato a algun enemigo
                 for (int i = 0; i < MAX_ENEMIGOS; ++i)
-                if(!enemigo[i].muerto)
-                {
-                    if (enemigo[i].colision(camPosition, player.Direction))
+                    if (!enemigo[i].muerto)
                     {
-                        enemigo[i].muerto = true;
-                        enemigo[i].currentAnimation = 0;
-                        enemigo[i].currentTime = 0;
+                        if (enemigo[i].colision(camPosition, player.Direction))
+                        {
+                            enemigo[i].muerto = true;
+                            enemigo[i].currentAnimation = 0;
+                            enemigo[i].currentTime = 0;
+                        }
                     }
-                }
             }
-            else
-                ak47.setAnimation(1);
-
 
             if (playing)
             {
@@ -301,11 +263,12 @@ namespace TGC.MonoGame.TP
                 Vector3 desf = new Vector3(0, soldier_height/2-5, 0);
                 camPosition = player.Position + player.Direction * 0 + desf;
                 View = Matrix.CreateLookAt(camPosition, camPosition + player.Direction * 100 , new Vector3(0, 1, 0));
-                    
+
+
             }
 
 
-            
+
             base.Update(gameTime);
         }
 
@@ -328,15 +291,9 @@ namespace TGC.MonoGame.TP
 
             // escenario
             scene.Draw(Matrix.Identity, View, Projection);
-
-            var world = Matrix.CreateRotationY(weapon_angle * MathF.PI / 180.0f) *
-                        Matrix.CreateTranslation(weapon_desf + 
-                            new Vector3(0,0,MathF.Sin(player.dist*0.01f)))*
-                        CalcularMatrizOrientacion(1.0f, camPosition, player.Direction);
-            ak47.Draw(GraphicsDevice, EffectSmd, world, View, Projection);
-
-
-
+            // arma
+            weapon.Draw(EffectSmd, View, Projection);
+            // enemigos
             for (int i = 0; i < MAX_ENEMIGOS; ++i)
             {
                 var e = enemigo[i];
@@ -362,9 +319,14 @@ namespace TGC.MonoGame.TP
             }
             */
 
+
+            skybox.Draw(GraphicsDevice, scene.p_min, scene.p_max, EffectMesh, View, Projection);
+
             spriteBatch.Begin();
-            spriteBatch.DrawString(font, "X:"+weapon_desf.X + "  Y:" + weapon_desf.Y + "  Z:" + weapon_desf.Z +
-                "  Angle="+weapon_angle ,new Vector2(10, 50), Color.YellowGreen);
+
+            var W = weapon.weapons[weapon.cur_weapon];
+            spriteBatch.DrawString(font, "X:"+W.weapon_desf.X + "  Y:" + W.weapon_desf.Y + "  Z:" + W.weapon_desf.Z +
+              "  Pitch="+ W.weapon_pitch+ "  Yaw=" + W.weapon_yaw, new Vector2(10, 50), Color.YellowGreen);
             if (recording)
                 spriteBatch.DrawString(font, "R", new Vector2(10, 10), Color.YellowGreen);
 
@@ -402,8 +364,6 @@ namespace TGC.MonoGame.TP
 
             int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
             spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
-            if(!scene.usar_smd)
-                spriteBatch.DrawString(font, "usando mesh MDL", new Vector2(10, 10), Color.YellowGreen);
             spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
                     new Vector2(10, 100), Color.YellowGreen);
             spriteBatch.End();
@@ -428,7 +388,7 @@ namespace TGC.MonoGame.TP
         }
 
 
-        public Matrix CalcularMatrizOrientacion(float scale, Vector3 pos, Vector3 Dir)
+        public static Matrix CalcularMatrizOrientacion(float scale, Vector3 pos, Vector3 Dir)
         {
             var matWorld = Matrix.CreateScale(scale , Math.Abs(scale), Math.Abs(scale)) 
                     * Matrix.CreateRotationY(MathF.PI);

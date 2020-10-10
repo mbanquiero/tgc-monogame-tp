@@ -174,6 +174,7 @@ namespace TGC.MonoGame.TP
         public int currentAnimation = 0;
         public float timerIA = 0;
         public bool muerto = false;
+        public bool chasing = false;
         // hitpoints
         public int cant_hp = 4;
         public hit_point[] hit_points = new hit_point[5];
@@ -201,24 +202,36 @@ namespace TGC.MonoGame.TP
 
         public override void Update(float elapsed_time)
         {
+            UpdateAnimation(elapsed_time);
+            if (muerto)
+            {
+                return;
+            }
             UpdateIA(elapsed_time);
             ProcessInput(elapsed_time);
-            UpdateAnimation(elapsed_time);
             UpdatePhysics(elapsed_time);
         }
 
         public void UpdateIA(float elapsed_time)
         {
+            return;
+
             if (timerIA > 0)
             {
                 timerIA -= elapsed_time;
                 return;
             }
 
-            if (Vector3.Cross(Position - game.player.Position, Direction).Y > 0)
-                Direction = Vector3.TransformNormal(Direction, Matrix.CreateRotationY(0.01f));
+            if(chasing)
+            {
+                if (Vector3.Cross(Position - game.player.Position, Direction).Y > 0)
+                    Direction = Vector3.TransformNormal(Direction, Matrix.CreateRotationY(0.01f));
+                else
+                    Direction = Vector3.TransformNormal(Direction, Matrix.CreateRotationY(-0.01f));
+            }
             else
-                Direction = Vector3.TransformNormal(Direction, Matrix.CreateRotationY(-0.01f));
+            if ((Position - game.player.Position).Length() < 1500)
+                chasing = true;
         }
 
         public override void ProcessInput(float elapsed_time) 
@@ -233,10 +246,6 @@ namespace TGC.MonoGame.TP
         public override void UpdatePhysics(float elapsed_time)
         {
 
-            if(muerto)
-            {
-                return;
-            }
             PrevPosition = Position;
             if(!game.pause)
                 Position += Direction * vel_lineal * elapsed_time;

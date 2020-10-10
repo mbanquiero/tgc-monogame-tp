@@ -87,7 +87,7 @@ namespace TGC.MonoGame.TP
             if(texture!=null)
                 pos.Z += texture.Width * 0.1f;
             
-            Matrix world = Matrix.CreateScale(texture.Width*0.5f) * Matrix.CreateTranslation(pos);
+            Matrix world = Matrix.CreateScale(texture.Width*0.5f*scale) * Matrix.CreateTranslation(pos);
             Effect.Parameters["World"].SetValue(world);
             if (texture != null)
                 Effect.Parameters["ModelTexture"].SetValue(texture);

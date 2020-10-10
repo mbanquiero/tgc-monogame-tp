@@ -42,6 +42,16 @@ sampler2D textureSampler = sampler_state
 	AddressV = Wrap;
 };
 
+texture SkyboxTexture;
+sampler2D skyboxSampler = sampler_state
+{
+	Texture = (SkyboxTexture);
+	MagFilter = Linear;
+	MinFilter = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
 float Time = 0;
 
 
@@ -93,6 +103,12 @@ float4 ColorPS(VertexShaderOutput input) : COLOR
 	return float4(1, 0, 1, 1);
 }
 
+
+float4 SkyboxPS(VertexShaderOutput input) : COLOR
+{
+	return tex2D(skyboxSampler, input.TextureCoordinate);
+}
+
 technique TextureDrawing
 {
 	pass P0
@@ -118,6 +134,15 @@ technique ColorDrawing
 	{
 		VertexShader = compile VS_SHADERMODEL MainVS();
 		PixelShader = compile PS_SHADERMODEL ColorPS();
+	}
+};
+
+technique SkyboxDrawing
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL MainVS();
+		PixelShader = compile PS_SHADERMODEL SkyboxPS();
 	}
 };
 
