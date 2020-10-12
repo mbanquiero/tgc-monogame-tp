@@ -105,5 +105,41 @@ namespace TGC.MonoGame.TP
 		}
 
 
+		/// <summary>
+		///     Indica si un punto p en el espacio se encuentra dentro de un triangulo (a, b, c)
+		/// </summary>
+		/// <param name="p">Punto a probar</param>
+		/// <param name="a">Vertice A del triangulo</param>
+		/// <param name="b">Vertice B del triangulo</param>
+		/// <param name="c">Vertice C del triangulo</param>
+		/// <returns>True si el punto pertenece al triangulo</returns>
+		public static bool testPointInTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+		{
+
+			// verifico primero si vive en el mismo plano
+			var n = Vector3.Cross(b - a, c - a);
+			if (MathF.Abs(Vector3.Dot(p - a, n)) > 1.01f)
+				return false;       // esta en otro plano
+
+
+			// Translate point and triangle so that point lies at origin
+			a -= p;
+			b -= p;
+			c -= p;
+
+			// Compute normal vectors for triangles pab and pbc
+			var u = Vector3.Cross(b, c);
+			var v = Vector3.Cross(c, a);
+			// Make sure they are both pointing in the same direction
+			if (Vector3.Dot(u, v) < 0.0f) return false;
+			// Compute normal vector for triangle pca
+			var w = Vector3.Cross(a, b);
+			// Make sure it points in the same direction as the first two
+			if (Vector3.Dot(u, w) < 0.0f) return false;
+			// Otherwise P must be in (or on) the triangle
+			return true;
+		}
+
+
 	}
 }

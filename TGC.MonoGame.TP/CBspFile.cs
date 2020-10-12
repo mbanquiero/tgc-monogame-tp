@@ -109,6 +109,17 @@ namespace TGC.MonoGame.TP
 		}
 	}
 
+	public class info_decal
+    {
+		public Vector3 origin;
+		public Texture2D texture;
+
+		public info_decal(CBspFile scene,Vector3 p , string image_name , GraphicsDevice device)
+        {
+			origin = p;
+			texture = scene.decals_tx_pool.insert(image_name, device);
+		}
+	};
 
 	public class CBspFile
 	{
@@ -166,7 +177,12 @@ namespace TGC.MonoGame.TP
 		public static string map_folder = "C:\\Counter-Strike Source\\cstrike\\maps\\";
 		public static string cs_folder = "C:\\Counter-Strike Source\\cstrike\\";
 
-
+		// decals
+		public const int MAX_DECALS = 256;
+		public int cant_decals;
+		public info_decal[] decals = new info_decal[MAX_DECALS];
+		public VertexBuffer decalsVertexBuffer;
+		public CTexturePool decals_tx_pool = new CTexturePool();
 
 
 		public CBspFile(string fname, GraphicsDevice p_device, ContentManager p_content)
@@ -283,6 +299,9 @@ namespace TGC.MonoGame.TP
 			sp.rendercolor = new Vector3(1, 1, 1);
 			sp.scale = 0.1f;
 			sp.renderamt = 1;
+
+			// decals
+			createDecals();
 
 		}
 
@@ -469,7 +488,7 @@ namespace TGC.MonoGame.TP
 						faces[cant_faces].v[0] = v0;
 						faces[cant_faces].v[1] = v1;
 						faces[cant_faces].v[2] = v2;
-						faces[cant_faces].nro_modelo = -1;		// escenario
+						faces[cant_faces].nro_modelo = -1-i;		// escenario
 						cant_faces++;
 					}
 				}
@@ -617,7 +636,7 @@ namespace TGC.MonoGame.TP
 								if (key == "origin")
 									origin = parseVector3(value);
 								else
-								if (key == "model" || key== "RopeMaterial")
+								if (key == "model" || key== "RopeMaterial" || key=="texture")
 									model = value;
 								else
 								if (key == "classname")
@@ -661,6 +680,11 @@ namespace TGC.MonoGame.TP
 								rendercolor = new Vector3(1, 1, 1);
 								renderamt = 1;
 							}
+							if(classname == "infodecal")
+                            {
+								rendercolor = new Vector3(1, 1, 1);
+								renderamt = 1;
+                            }
 							model = model.Replace("materials/", "").Replace(".vmt", "");
 							var p = sprites[cant_sprites++] = new CSprite(model,device,Content);
 							p.origin = origin;
@@ -669,6 +693,12 @@ namespace TGC.MonoGame.TP
 							p.rendercolor = rendercolor;
 							Debug.WriteLine(model + " " + origin + "  " + angles);
 
+						}
+						else
+						if (classname == "infodecal" && cant_decals < MAX_DECALS- 1)
+						{
+							model = model.Replace("materials/", "").Replace(".vmt", "");
+							decals[cant_decals++] = new info_decal(this,origin,model,device);
 						}
 						break;
 
@@ -690,6 +720,58 @@ namespace TGC.MonoGame.TP
 			reader.Dispose();
 		}
 
+		public int que_face(Vector3 p)
+        {
+			int rta = -1;
+			for(int i=0;i<cant_faces && rta==-1 && faces[i].nro_modelo<0;++i)
+            {
+				// verifico si el punto vive en la cara i
+				if (TgcCollisionUtils.testPointInTriangle(p, faces[i].v[0], faces[i].v[1], faces[i].v[2]))
+					rta = i;
+            }
+			return rta;
+		}
+		public void createDecals()
+		{
+
+			VertexPositionTexture []vertices = new VertexPositionTexture[cant_decals*4];
+			int t = 0;
+			for (int i = 0; i < cant_decals; ++i)
+			{
+
+				// determino en que cara vive el decal
+				int f = que_face(decals[i].origin);
+				if (f != -1)
+				{
+					Vector3 n = Vector3.Cross(faces[f].v[2] - faces[f].v[0], faces[f].v[1] - faces[f].v[0]);
+					n.Normalize();
+					Vector3 up;
+					if( MathF.Abs(n.X)<= MathF.Abs(n.Y) && MathF.Abs(n.X) <= MathF.Abs(n.Z))
+						up = new Vector3(1, 0, 0);
+					else
+					if (MathF.Abs(n.Y) <= MathF.Abs(n.X) && MathF.Abs(n.Y) <= MathF.Abs(n.Z))
+						up = new Vector3(0, 1, 0);
+					else
+						up = new Vector3(0, 0 , 1);
+
+					Vector3 v = Vector3.Cross(n, up);
+					v.Normalize();
+					Vector3 u = Vector3.Cross(n, v);
+					u.Normalize();
+
+					float du = 50;
+					float dv = 50;
+
+					Vector3 p = decals[i].origin - u * du*0.5f - v * dv * 0.5f - n*5;
+					vertices[t++] = new VertexPositionTexture(p, new Vector2(0, 0));
+					vertices[t++] = new VertexPositionTexture(p + u * du, new Vector2(0, 1));
+					vertices[t++] = new VertexPositionTexture(p + v * dv, new Vector2(-1, 0));
+					vertices[t++] = new VertexPositionTexture(p + u * du + v * dv, new Vector2(-1, 1));
+				}
+			}
+			decalsVertexBuffer = new VertexBuffer(device, VertexPositionTexture.VertexDeclaration, t, BufferUsage.WriteOnly);
+			decalsVertexBuffer.SetData(vertices, 0, t);
+		}
 
 		public void Draw(Matrix World, Matrix View, Matrix Proj)
 		{
@@ -724,6 +806,22 @@ namespace TGC.MonoGame.TP
 					pos += cant_items;
 				}
 			}
+
+			// decals
+			device.BlendState = BlendState.NonPremultiplied;
+			device.DepthStencilState = DepthStencilState.DepthRead;
+			device.SetVertexBuffer(decalsVertexBuffer);
+			for (int i = 0; i < cant_decals; ++i)
+			{
+				Effect.Parameters["ModelTexture"].SetValue(decals[i].texture != null ? decals[i].texture : texture_default);
+				foreach (var pass in Effect.CurrentTechnique.Passes)
+				{
+					pass.Apply();
+					device.DrawPrimitives(PrimitiveType.TriangleStrip, i * 4, 2);
+				}
+			}
+			device.DepthStencilState = DepthStencilState.Default;
+
 
 			// modelos estaticos
 			// primero layers opacos luego transparentes

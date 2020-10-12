@@ -11,6 +11,7 @@ float4x4 World;
 float4x4 View;
 float4x4 Projection;
 
+
 struct VertexShaderInput
 {
 	float4 Position : POSITION0;
@@ -89,24 +90,12 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	float3 L = normalize(LightPos - input.WorldPos);
 	float3 N = normalize(input.Normal);
 	float kd = abs(dot(N, L)) + 0.4;
-	float3 clr = tex2D(textureSampler, input.TextureCoordinate.xy).rgb;
+	float4 clr = tex2D(textureSampler, input.TextureCoordinate.xy);
 	float  u = input.LightmapCoordinate.x;
 	float  v = input.LightmapCoordinate.y;
 	float4 ls = tex2D(lightmapSampler, float2(v,-u));
 	float3 kl = DecompressLightmapSample(ls);
-	//return float4(DecompressLightmapSample(ls), 1);
-
-	/*
-	u = input.TextureCoordinate.x;
-	v = input.TextureCoordinate.y;
-	clr = tex2D(textureSampler, float2(-u,v)).rgb;
-	*/
-
-	//return float4(clr * kd, 1);
-	
-	// estandard:
-	return float4(clr*kd*kl, 1);			
-
+	return float4(clr.rgb*kd*kl, clr.a);
 }
 
 
