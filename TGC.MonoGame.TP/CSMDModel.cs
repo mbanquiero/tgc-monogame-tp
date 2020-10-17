@@ -71,15 +71,16 @@ namespace TGC.MonoGame.TP
 	{
 		public string name;
 		public int pos;
-		public int cant_items;
+		public int cant_items = 0;
 		public string image_name;
-		public bool traslucido;
+		public bool traslucido = false;
+		public float alphaTestReference = 0.0f;
 
 		public smd_subset(string s)
         {
 			name = s;
-        }
-	};
+		}
+};
 
 
 	public class CSMDModel
@@ -663,24 +664,49 @@ namespace TGC.MonoGame.TP
 					var content = File.ReadAllText(vmt).ToLower();
 					// "$translucent" "1"
 					// "$translucent" 1
+					// "$alphatest" 1
+					// "$AlphaTestReference" "0.5"
 
+					string value = "";
+					if(parseTag(content , "$translucent", out value) && int.Parse(value)==1)
+                    {
+						subset[i].traslucido = true;
+					}
 
-					var start = content.IndexOf("$translucent");
-					if (start >= 0)
+					if (parseTag(content, "$alphatest", out value) && int.Parse(value) == 1)
 					{
-						start += 12;
-						if (content[start] == '\"')
-							++start;
-						if (content[start] == ' ')
-							++start;
-						if (content[start] == '\"')
-							++start;
-						if (content[start] == '1')
-							subset[i].traslucido = true;
+						subset[i].traslucido = true;
+						if (parseTag(content, "$alphatestreference", out value))
+							subset[i].alphaTestReference = atof(value);
 					}
 				}
 
 			}
+		}
+
+		// helper parse tag
+		public bool parseTag(string content , string tag , out string value)
+        {
+			bool rta = false;
+			value = "";
+			// tag = "$translucent"
+			// "$translucent" "1"
+			// "$translucent" 1
+			// "$AlphaTestReference" "0.5"
+			var i = content.IndexOf(tag);
+			var len = content.Length;
+			if (i>= 0)
+			{
+				rta = true;
+				i += tag.Length;
+				// busco el primer digito
+				while (!char.IsDigit(content[i]) && i < len) i++;
+				// leo todos los digitos (o el punto decimal)
+				while ((char.IsDigit(content[i]) || content[i]=='.') && i<len)
+					value += content[i++];
+			}
+
+			return rta;
 		}
 
 		public void updateMeshVertices()
@@ -708,7 +734,7 @@ namespace TGC.MonoGame.TP
 				Effect.Parameters["bonesMatWorldArray"].SetValue(matBoneSpace);
 			}
 
-
+			var AlphaTestReference = Effect.Parameters["AlphaTestReference"];
 
 			// L ==0  opacos , ==1 traslucidos
 			for (var i = 0; i < cant_subsets; i++)
@@ -719,6 +745,8 @@ namespace TGC.MonoGame.TP
 					var pos = subset[i].pos;
 					if (texture[i] != null)
 						Effect.Parameters["ModelTexture"].SetValue(texture[i]);
+					if(AlphaTestReference!=null)
+						AlphaTestReference.SetValue(subset[i].alphaTestReference);
 
 					foreach (var pass in Effect.CurrentTechnique.Passes)
 					{

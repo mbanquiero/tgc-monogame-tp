@@ -74,15 +74,12 @@ namespace TGC.MonoGame.TP
     {
 		public const int MAX_MESHES = 1024;
 		public int cant_meshes;
-
-		public CSMDModel[] meshes2;
-		public CMdlMesh[] meshes;
+		public CSMDModel[] meshes;
 
 		public CMeshPool()
 		{
 			cant_meshes = 0;
-			meshes2 = new CSMDModel[MAX_MESHES];
-			meshes = new CMdlMesh[MAX_MESHES];
+			meshes = new CSMDModel[MAX_MESHES];
 		}
 
 		public int que_mesh(string model)
@@ -101,8 +98,7 @@ namespace TGC.MonoGame.TP
 			int rta = que_mesh(model);
 			if (rta == -1)
 			{
-				meshes[rta = cant_meshes++] = new CMdlMesh(model, device, Content, cs_folder);
-				meshes2[rta] = new CSMDModel(model, device, Content, cs_folder);
+				meshes[rta = cant_meshes++] = new CSMDModel(model, device, Content, cs_folder);
 			}
 			return rta;
 
@@ -143,8 +139,6 @@ namespace TGC.MonoGame.TP
 		public VertexBuffer bbVertexBuffer;
 		public int cant_debug_bb = 0;
 
-		public bool usar_smd = true;
-
 		public int current_subset = 6;
 		public bool mostrar_tools = false;
 		public int current_model = 0;
@@ -178,7 +172,7 @@ namespace TGC.MonoGame.TP
 		public static string cs_folder = "C:\\Counter-Strike Source\\cstrike\\";
 
 		// decals
-		public const int MAX_DECALS = 256;
+		public const int MAX_DECALS = 4096;
 		public int cant_decals;
 		public info_decal[] decals = new info_decal[MAX_DECALS];
 		public VertexBuffer decalsVertexBuffer;
@@ -832,16 +826,8 @@ namespace TGC.MonoGame.TP
 				for (var i = 0; i < cant_modelos; ++i)
 				{
 					Matrix world = modelos[i].world();
-					if(usar_smd)
-					{
-						CSMDModel p_mesh = mesh_pool.meshes2[modelos[i].nro_mesh];
-						p_mesh.Draw(device, EffectMesh, world, View, Proj, L);
-					}
-					else
-                    {
-						CMdlMesh p_mesh = mesh_pool.meshes[modelos[i].nro_mesh];
-						p_mesh.Draw(device, EffectMesh, world, View, Proj, L);
-					}
+					CSMDModel p_mesh = mesh_pool.meshes[modelos[i].nro_mesh];
+					p_mesh.Draw(device, EffectMesh, world, View, Proj, L);
 				}
 
 				// paso al layer transparente

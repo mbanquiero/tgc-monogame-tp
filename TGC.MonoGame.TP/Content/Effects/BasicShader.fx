@@ -13,6 +13,7 @@ float4x4 Projection;
 
 float renderamt = 1;
 float3 rendercolor = float3(1, 1, 1);
+float AlphaTestReference = 1.0f;
 
 struct VertexShaderInput
 {
@@ -81,7 +82,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 	float u = input.TextureCoordinate.x;
 	float v = input.TextureCoordinate.y;
 	float4 clr = tex2D(textureSampler, float2(u,v));
-	if (clr.a < 0.05)
+	if (clr.a < AlphaTestReference)
 		discard;
 	float3 LightPos = float3(1000, 5000, 1000);
 	float3 L = normalize(LightPos - input.WorldPos);

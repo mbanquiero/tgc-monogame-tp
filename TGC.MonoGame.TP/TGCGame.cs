@@ -175,6 +175,8 @@ namespace TGC.MonoGame.TP
         public void UpdateGame(GameTime gameTime)
         {
             float elapsed_time = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            //elapsed_time /= 6.0f;
+
             var keyState = Keyboard.GetState();
             if (keyState.IsKeyDown(Keys.Escape))
                 Exit();                     //Salgo del juego.
@@ -209,11 +211,22 @@ namespace TGC.MonoGame.TP
             else
                 keyDown[(int)Keys.R] = false;
 
+            if (keyState.IsKeyDown(Keys.G))
+            {
+                if (!keyDown[(int)Keys.G])
+                    playing = !playing;
+                keyDown[(int)Keys.G] = true;
+            }
+            else
+                keyDown[(int)Keys.G] = false;
+
+
             if (keyState.IsKeyDown(Keys.P))
             {
                 if (!keyDown[(int)Keys.P])
                     pause = !pause;
                 keyDown[(int)Keys.P] = true;
+                
                 if (pause)
                     curr_frame = 0;
             }
@@ -241,19 +254,13 @@ namespace TGC.MonoGame.TP
                     }
             }
 
-            if (playing)
-            {
-                /*LookAt = rLookAt[curr_frame % cant_frames % MAX_FRAMES];
-                LookFrom = rLookFrom[curr_frame % cant_frames % MAX_FRAMES];
-                View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
-                */
-            }
-            else
+            if (!playing)
             {
                 if (recording)
                 {
-                    rLookFrom[cant_frames % MAX_FRAMES] = player.Position;
-                    rLookAt[cant_frames % MAX_FRAMES] = player.Position + player.Direction;
+                    var p = cant_frames % MAX_FRAMES;
+                    rLookFrom[p] = player.Position;
+                    rLookAt[p] = player.Position + player.Direction;
                     ++cant_frames;
                 }
 
@@ -263,11 +270,7 @@ namespace TGC.MonoGame.TP
                 Vector3 desf = new Vector3(0, soldier_height/2-5, 0);
                 camPosition = player.Position + player.Direction * 0 + desf;
                 View = Matrix.CreateLookAt(camPosition, camPosition + player.Direction * 100 , new Vector3(0, 1, 0));
-
-
             }
-
-
 
             base.Update(gameTime);
         }
@@ -304,68 +307,23 @@ namespace TGC.MonoGame.TP
 
             tgcLogo.Draw(Matrix.CreateScale(2.0f)*
                 Matrix.CreateRotationY(MathHelper.Pi*(float)gameTime.TotalGameTime.TotalSeconds*0.5f)
-                    *Matrix.CreateTranslation(3500,665,5900), View, Projection);
+                    *Matrix.CreateTranslation(3500,710,5900), View, Projection);
 
-            /*
-            MouseState state = Mouse.GetState();
-            if (state.LeftButton == ButtonState.Pressed)
-            {
-                for (var i = 0; i < 10; ++i)
-                {
-                    var p1 = camPosition + player.Direction * 100 * i;
-                    var s = new Vector3(5, 5, 5);
-                    debug_box.Draw(GraphicsDevice, p1 - s, p1 + s, EffectMesh, Matrix.Identity, View, Projection);
-                }
-            }
-            */
-
-
-            skybox.Draw(GraphicsDevice, scene.p_min, scene.p_max, EffectMesh, View, Projection);
+            skybox.Draw(GraphicsDevice, scene.p_min*1.5f, scene.p_max * 1.5f, EffectMesh, View, Projection);
 
             spriteBatch.Begin();
-
-            var W = weapon.weapons[weapon.cur_weapon];
-            spriteBatch.DrawString(font, "X:"+W.weapon_desf.X + "  Y:" + W.weapon_desf.Y + "  Z:" + W.weapon_desf.Z +
-              "  Pitch="+ W.weapon_pitch+ "  Yaw=" + W.weapon_yaw, new Vector2(10, 50), Color.YellowGreen);
             if (recording)
-                spriteBatch.DrawString(font, "R", new Vector2(10, 10), Color.YellowGreen);
+                spriteBatch.DrawString(font, "grabando...", new Vector2(10, 50), Color.YellowGreen);
 
-            /*
-            MouseState state = Mouse.GetState();
-            var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
-            var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
-            scene.intersectSegment(p0, p1, out ip_data ip);
-            if (ip.nro_face != -1)
-            {
-                var face = scene.g_faces[ip.nro_face];
-                if (face.nro_modelo >= 0)
-                {
-                    var modelo = scene.modelos[face.nro_modelo];
-                    var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
-                    spriteBatch.DrawString(font,  mesh.name+
-                            "  dx=" +mesh.size.X + "dy= " + mesh.size.Y + " dz=" + mesh.size.Z
-                        , new Vector2(10, 50), Color.YellowGreen);
-                }
-            }
-            */
+            // drawWeaponDesf();
+            // drawMeshInfo();
+            // drawEnemyInfo();
 
-            /*
-            for (var i = 0; i < MAX_ENEMIGOS; ++i)
-            if(!enemigo[i].muerto)
-            {
-                var P = enemigo[i].hit_points[0].Position;
-                var dist = (camPosition - P).Length();
-                var Q = camPosition + player.Direction * dist;
-                var r = (Q - enemigo[0].hit_points[0].Position).Length();
-                spriteBatch.DrawString(font, "#" +i+ " Fire = (" + Q.X + " , " + Q.Y + " ," + Q.Z + ")" + "HitPpoint= (" + P.X + " , " + P.Y + " ," + P.Z + ") dist =" + r,
-                        new Vector2(10, 200+50*i), Color.YellowGreen);
-            }
-            */
 
             int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
             spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
-            spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
-                    new Vector2(10, 100), Color.YellowGreen);
+            //spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
+            //        new Vector2(10, 100), Color.YellowGreen);
             spriteBatch.End();
 
             CDebugLine.Draw(GraphicsDevice, new Vector3(-30,0,0.5f), new Vector3(30, 0, 0.5f),
@@ -378,7 +336,14 @@ namespace TGC.MonoGame.TP
 
             base.Draw(gameTime);
 
-            if(playing)
+            /*
+            if(recording)
+            {
+                screenShoot();
+                ++curr_frame;
+            }*/
+
+            if (playing)
             {
                 screenShoot();
                 ++curr_frame;
@@ -387,6 +352,48 @@ namespace TGC.MonoGame.TP
             }
         }
 
+        public void drawWeaponDesf()
+        {
+            // muestra los desf del arma
+            var W = weapon.weapons[weapon.cur_weapon];
+            spriteBatch.DrawString(font, "X:" + W.desf.X + "  Y:" + W.desf.Y + "  Z:" + W.desf.Z +
+              "  Pitch=" + W.pitch + "  Yaw=" + W.yaw, new Vector2(10, 50), Color.YellowGreen);
+        }
+
+        public void drawMeshInfo()
+        {
+            MouseState state = Mouse.GetState();
+            var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
+            var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
+            scene.intersectSegment(p0, p1, out ip_data ip);
+            if (ip.nro_face != -1)
+            {
+                var face = scene.g_faces[ip.nro_face];
+                if (face.nro_modelo >= 0)
+                {
+                    var modelo = scene.modelos[face.nro_modelo];
+                    var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
+                    spriteBatch.DrawString(font, mesh.name +
+                            "  dx=" + mesh.size.X + "dy= " + mesh.size.Y + " dz=" + mesh.size.Z + 
+                            " #"+ modelo.nro_mesh
+                        , new Vector2(10, 50), Color.YellowGreen);
+                }
+            }
+        }
+
+        public void drawEnemyInfo()
+        {
+            for (var i = 0; i < MAX_ENEMIGOS; ++i)
+            if(!enemigo[i].muerto)
+            {
+                var P = enemigo[i].hit_points[0].Position;
+                var dist = (camPosition - P).Length();
+                var Q = camPosition + player.Direction * dist;
+                var r = (Q - enemigo[0].hit_points[0].Position).Length();
+                spriteBatch.DrawString(font, "#" +i+ " Fire = (" + Q.X + " , " + Q.Y + " ," + Q.Z + ")" + "HitPpoint= (" + P.X + " , " + P.Y + " ," + P.Z + ") dist =" + r,
+                        new Vector2(10, 200+50*i), Color.YellowGreen);
+            }
+        }
 
         public static Matrix CalcularMatrizOrientacion(float scale, Vector3 pos, Vector3 Dir)
         {

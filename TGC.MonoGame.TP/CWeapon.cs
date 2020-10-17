@@ -12,9 +12,10 @@ namespace TGC.MonoGame.TP
 
         public CSMDModel model;
         // desfasajes para ubicar en el soldado
-        public Vector3 weapon_desf = new Vector3(-4, -1, -14);
-        public float weapon_pitch = 80;
-        public float weapon_yaw = 0;
+        public Vector3 desf = new Vector3(-4, -1, -14);
+        public Vector3 scale = new Vector3(1, 1, 1);
+        public float pitch = 80;
+        public float yaw = 0;
         public int cant_tiros = 20;
         public int cant_tiros_max = 20;
 
@@ -80,15 +81,15 @@ namespace TGC.MonoGame.TP
             while(t<W.Length)
             {
                 String weapon_name = "weapons\\"+W[t++];
-                String ani_folder =  weapon_name + "_anims";
-                var m = weapons[cant_weapons++] = new weapon_reference(weapon_name, device, Content, cs_folder,
+                weapons[cant_weapons++] = new weapon_reference(weapon_name, device, Content, cs_folder,
                         W[t++], W[t++], W[t++], int.Parse(W[t++]));
             }
 
             // sobrecargo la ak47 
-            weapons[0].weapon_pitch = 76;
-            weapons[0].weapon_yaw = 14;
-            weapons[0].weapon_desf = new Vector3(-5,-6,-15);
+            weapons[0].pitch = 76;
+            weapons[0].yaw = 14;
+            weapons[0].desf = new Vector3(-5, -6, -15);
+            weapons[0].scale = new Vector3(1, 1, -1);
 
 
         }
@@ -103,12 +104,12 @@ namespace TGC.MonoGame.TP
         public Matrix getTransform()
         {
             var W = weapons[cur_weapon];
-            return Matrix.CreateScale(1,1,-1)*
-                Matrix.CreateRotationY(W.weapon_pitch * MathF.PI / 180.0f) *
-                Matrix.CreateRotationX(W.weapon_yaw * MathF.PI / 180.0f) *
-                        Matrix.CreateTranslation(W.weapon_desf +
-                            new Vector3(0, 0, MathF.Sin(game.player.dist * 0.01f))) *
-                        TGCGame.CalcularMatrizOrientacion(1.0f, game.camPosition, game.player.Direction);
+            return 
+                Matrix.CreateScale(W.scale)*
+                Matrix.CreateRotationY(W.pitch * MathF.PI / 180.0f) *
+                Matrix.CreateRotationX(W.yaw * MathF.PI / 180.0f) *
+                Matrix.CreateTranslation(W.desf + new Vector3(0, 0, MathF.Sin(game.player.dist * 0.01f))) *
+                TGCGame.CalcularMatrizOrientacion(1.0f, game.camPosition, game.player.Direction);
 
         }
         public void Update(float elapsed_time)
@@ -123,22 +124,22 @@ namespace TGC.MonoGame.TP
             var keyState = Keyboard.GetState();
             if (keyState.IsKeyDown(Keys.LeftShift))
             {
-                if (keyState.IsKeyDown(Keys.Up)) W.weapon_desf.Z += s;
-                if (keyState.IsKeyDown(Keys.Down)) W.weapon_desf.Z -= s;
-                if (keyState.IsKeyDown(Keys.Left)) W.weapon_desf.X += s;
-                if (keyState.IsKeyDown(Keys.Right)) W.weapon_desf.X -= s;
-                if (keyState.IsKeyDown(Keys.W)) W.weapon_yaw += 0.1f;
-                if (keyState.IsKeyDown(Keys.S)) W.weapon_yaw -= 0.1f;
+                if (keyState.IsKeyDown(Keys.Up)) W.desf.Z += s;
+                if (keyState.IsKeyDown(Keys.Down)) W.desf.Z -= s;
+                if (keyState.IsKeyDown(Keys.Left)) W.desf.X += s;
+                if (keyState.IsKeyDown(Keys.Right)) W.desf.X -= s;
+                if (keyState.IsKeyDown(Keys.W)) W.yaw += 0.1f;
+                if (keyState.IsKeyDown(Keys.S)) W.yaw -= 0.1f;
 
             }
             else
             {
-                if (keyState.IsKeyDown(Keys.W)) W.weapon_pitch += 0.1f;
-                if (keyState.IsKeyDown(Keys.S)) W.weapon_pitch -= 0.1f;
+                if (keyState.IsKeyDown(Keys.W)) W.pitch += 0.1f;
+                if (keyState.IsKeyDown(Keys.S)) W.pitch -= 0.1f;
 
             }
-            if (keyState.IsKeyDown(Keys.Q)) W.weapon_desf.Y += s;
-            if (keyState.IsKeyDown(Keys.A)) W.weapon_desf.Y -= s;
+            if (keyState.IsKeyDown(Keys.Q)) W.desf.Y += s;
+            if (keyState.IsKeyDown(Keys.A)) W.desf.Y -= s;
 
 
             if (keyState.IsKeyDown(Keys.PageDown))
@@ -155,6 +156,19 @@ namespace TGC.MonoGame.TP
             else
                 game.keyDown[(int)Keys.PageDown] = false;
 
+            if (keyState.IsKeyDown(Keys.PageUp))
+            {
+                if (!game.keyDown[(int)Keys.PageUp])
+                {
+                    cur_weapon = (cur_weapon - 1) % cant_weapons;
+                    status = W_RELOADING;
+                    m.currentTime = 0;
+                    m.setAnimation(1);
+                }
+                game.keyDown[(int)Keys.PageUp] = true;
+            }
+            else
+                game.keyDown[(int)Keys.PageUp] = false;
 
             MouseState state = Mouse.GetState();
 
