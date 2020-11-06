@@ -17,7 +17,10 @@ namespace TGC.MonoGame.TP
         public float soldier_height = 77;
 
         public const string cs_folder = "C:\\Counter-Strike Source\\cstrike\\";
-        public const string map_name = "cs_assault";
+        public const string map_name = "cs_office";
+            // "cs_havana";
+            //"de_mirage_csgo";
+            //"cs_assault";
 
         public float fieldOfView = MathHelper.PiOver4;
         public float aspectRatio = 1;
@@ -48,12 +51,7 @@ namespace TGC.MonoGame.TP
 
         // grabar gamelay
         public bool recording = false;
-        public bool playing = false;
-        public const int MAX_FRAMES = 60 * 60 * 5;
         public int cant_frames = 0;
-        public int curr_frame = 0;
-        public Vector3[] rLookAt = new Vector3[MAX_FRAMES];
-        public Vector3[] rLookFrom = new Vector3[MAX_FRAMES];
 
         // modelos
         public Effect EffectSmd;
@@ -64,6 +62,9 @@ namespace TGC.MonoGame.TP
         public int mouse_ox, mouse_oy;
 
         public CDebugBox debug_box;
+
+        Random grnd = new Random();
+
 
 
         /// <summary>
@@ -90,6 +91,10 @@ namespace TGC.MonoGame.TP
             Projection.M11 *= -1;           // dif. de convencion con el motor de Source
             Graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
             Graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
+
+            //Graphics.PreferredBackBufferWidth = 800;
+            //Graphics.PreferredBackBufferHeight = 600;
+
             Graphics.ApplyChanges();
             base.Initialize();
             Mouse.SetPosition(mouse_ox = GraphicsDevice.Viewport.Width / 2,mouse_oy = GraphicsDevice.Viewport.Height / 2);
@@ -202,6 +207,7 @@ namespace TGC.MonoGame.TP
             else
                 keyDown[(int)Keys.T] = false;
 
+            // record
             if (keyState.IsKeyDown(Keys.R))
             {
                 if (!keyDown[(int)Keys.R])
@@ -211,24 +217,28 @@ namespace TGC.MonoGame.TP
             else
                 keyDown[(int)Keys.R] = false;
 
-            if (keyState.IsKeyDown(Keys.G))
+            // SAVE
+            if (keyState.IsKeyDown(Keys.S))
             {
-                if (!keyDown[(int)Keys.G])
-                    playing = !playing;
-                keyDown[(int)Keys.G] = true;
+                if (!keyDown[(int)Keys.S])
+                { 
+                    recording = false;
+                    // grabo todo a disco
+                    for(int i=0;i<cant_frames;++i)
+                    {
+                        dat2jpg(i);
+                    }
+                }
+                keyDown[(int)Keys.S] = true;
             }
             else
-                keyDown[(int)Keys.G] = false;
-
+                keyDown[(int)Keys.S] = false;
 
             if (keyState.IsKeyDown(Keys.P))
             {
                 if (!keyDown[(int)Keys.P])
                     pause = !pause;
                 keyDown[(int)Keys.P] = true;
-                
-                if (pause)
-                    curr_frame = 0;
             }
             else
                 keyDown[(int)Keys.P] = false;
@@ -241,36 +251,48 @@ namespace TGC.MonoGame.TP
 
             if (weapon.firing())
             {
+                // contra que le pego el disparo
+                var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
+                var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
+                scene.intersectSegment(p0, p1, out ip_data ip);
+
+                float min_dist = ip.nro_face != -1 ? (ip.ip - camPosition).LengthSquared():0;
+                bool hay_sangre = false;
                 // verifico si mato a algun enemigo
+                // de forma aproximada verifico si el enemigo esta antes del punto de colision con el escenario
+                // para evitar que lo mate si hay algun obstaculo que detenga el tiro.
                 for (int i = 0; i < MAX_ENEMIGOS; ++i)
-                    if (!enemigo[i].muerto)
+                if (min_dist==0 || (enemigo[i].Position-camPosition).LengthSquared()<min_dist)
+                {
+                    if (enemigo[i].colision(camPosition, player.Direction))
                     {
-                        if (enemigo[i].colision(camPosition, player.Direction))
+
+                        if(!enemigo[i].muerto)
                         {
                             enemigo[i].muerto = true;
                             enemigo[i].currentAnimation = 0;
                             enemigo[i].currentTime = 0;
                         }
-                    }
-            }
 
-            if (!playing)
-            {
-                if (recording)
-                {
-                    var p = cant_frames % MAX_FRAMES;
-                    rLookFrom[p] = player.Position;
-                    rLookAt[p] = player.Position + player.Direction;
-                    ++cant_frames;
+                        hay_sangre = true;
+                    }
                 }
 
-                // camara primera persona
-                // la pos.Y = pos suelo + soldier_height/2 
-                // pos camara = pos.Y + soldier_height/2  - epsilon (en pulgadas)
-                Vector3 desf = new Vector3(0, soldier_height/2-5, 0);
-                camPosition = player.Position + player.Direction * 0 + desf;
-                View = Matrix.CreateLookAt(camPosition, camPosition + player.Direction * 100 , new Vector3(0, 1, 0));
+                if (ip.nro_face != -1)
+                {
+                    scene.addDecal(ip.ip, ip.nro_face, hay_sangre ? "decals/blood" + grnd.Next(1, 9) :
+                              "decals/concrete/shot3", hay_sangre);
+                }
+
+
             }
+
+            // camara primera persona
+            // la pos.Y = pos suelo + soldier_height/2 
+            // pos camara = pos.Y + soldier_height/2  - epsilon (en pulgadas)
+            Vector3 desf = new Vector3(0, soldier_height/2-5, 0);
+            camPosition = player.Position + player.Direction * 0 + desf;
+            View = Matrix.CreateLookAt(camPosition, camPosition + player.Direction * 100 , new Vector3(0, 1, 0));
 
             base.Update(gameTime);
         }
@@ -281,13 +303,6 @@ namespace TGC.MonoGame.TP
         /// </summary>
         public void DrawGame(GameTime gameTime)
         {
-            if (playing)
-            {
-                LookAt = rLookAt[curr_frame % cant_frames % MAX_FRAMES];
-                LookFrom = rLookFrom[curr_frame % cant_frames % MAX_FRAMES];
-                View = Matrix.CreateLookAt(LookFrom, LookAt, new Vector3(0, 1, 0));
-            }
-
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
             GraphicsDevice.RasterizerState = RasterizerState.CullNone;
             GraphicsDevice.Clear(Color.Black);
@@ -336,20 +351,12 @@ namespace TGC.MonoGame.TP
 
             base.Draw(gameTime);
 
-            /*
             if(recording)
             {
                 screenShoot();
-                ++curr_frame;
-            }*/
-
-            if (playing)
-            {
-                screenShoot();
-                ++curr_frame;
-                if (curr_frame >= cant_frames)
-                    playing = !playing;
+                ++cant_frames;
             }
+
         }
 
         public void drawWeaponDesf()
@@ -437,14 +444,61 @@ namespace TGC.MonoGame.TP
             int h = GraphicsDevice.PresentationParameters.BackBufferHeight;
             int[] backBuffer = new int[w * h];
             GraphicsDevice.GetBackBufferData(backBuffer);
-            //copy into a texture 
-            Texture2D texture = new Texture2D(GraphicsDevice, w, h, false, GraphicsDevice.PresentationParameters.BackBufferFormat);
-            texture.SetData(backBuffer);
-            //save to disk 
-            Stream stream = File.OpenWrite("c:\\tmp_counter\\frame"+ curr_frame.ToString("000")+".jpg");
-            texture.SaveAsJpeg(stream, w, h);
-            stream.Dispose();
-            texture.Dispose();
+            byte[] bytes = new byte[backBuffer.Length * sizeof(int)];
+            Buffer.BlockCopy(backBuffer, 0, bytes, 0, bytes.Length);
+
+            try
+            {
+                BinaryWriter dataOut = new BinaryWriter(new FileStream("c:\\tmp_counter\\frame" + cant_frames.ToString("000") + ".dat", FileMode.Create));
+                dataOut.Write(bytes);
+                dataOut.Close();
+            }
+            catch (IOException)
+            {
+                return;
+            }
+
+
+                /*
+                Stream stream = File.OpenWrite("c:\\tmp_counter\\frame" + curr_frame.ToString("000") + ".dat");
+                //copy into a texture 
+                Texture2D texture = new Texture2D(GraphicsDevice, w, h, false, GraphicsDevice.PresentationParameters.BackBufferFormat);
+                texture.SetData(backBuffer);
+                //save to disk 
+                Stream stream = File.OpenWrite("c:\\tmp_counter\\frame"+ curr_frame.ToString("000")+".PNG");
+                texture.SaveAsJpeg(stream, w, h);
+                stream.Dispose();
+                texture.Dispose();
+                */
+        }
+
+
+
+        public void dat2jpg(int nro_frame)
+        {
+            int w = GraphicsDevice.PresentationParameters.BackBufferWidth;
+            int h = GraphicsDevice.PresentationParameters.BackBufferHeight;
+            int[] backBuffer = new int[w * h];
+            byte[] bytes = new byte[backBuffer.Length * sizeof(int)];
+            try
+            {
+                BinaryReader dataIn = new BinaryReader(new FileStream("c:\\tmp_counter\\frame" + nro_frame.ToString("000") + ".dat", FileMode.Open));
+                dataIn.Read(bytes);
+                dataIn.Close();
+
+                Buffer.BlockCopy(bytes, 0, backBuffer, 0, bytes.Length);
+                Texture2D texture = new Texture2D(GraphicsDevice, w, h, false, GraphicsDevice.PresentationParameters.BackBufferFormat);
+                texture.SetData(backBuffer);
+                //save to disk 
+                Stream stream = File.OpenWrite("c:\\tmp_counter\\frame" + nro_frame.ToString("000") + ".jpg");
+                texture.SaveAsJpeg(stream, w, h);
+                texture.Dispose();
+            }
+            catch (IOException exc)
+            {
+                return;
+            }
+
         }
 
         /// <summary>

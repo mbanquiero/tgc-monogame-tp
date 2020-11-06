@@ -108,7 +108,7 @@ namespace TGC.MonoGame.TP
                 Matrix.CreateScale(W.scale)*
                 Matrix.CreateRotationY(W.pitch * MathF.PI / 180.0f) *
                 Matrix.CreateRotationX(W.yaw * MathF.PI / 180.0f) *
-                Matrix.CreateTranslation(W.desf + new Vector3(0, 0, MathF.Sin(game.player.dist * 0.01f))) *
+                Matrix.CreateTranslation(W.desf + new Vector3(0, 0, MathF.Sin(game.player.dist * 0.07f))) *
                 TGCGame.CalcularMatrizOrientacion(1.0f, game.camPosition, game.player.Direction);
 
         }

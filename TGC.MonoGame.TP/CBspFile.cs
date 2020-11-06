@@ -109,11 +109,13 @@ namespace TGC.MonoGame.TP
     {
 		public Vector3 origin;
 		public Texture2D texture;
+		public bool blood = false;
 
-		public info_decal(CBspFile scene,Vector3 p , string image_name , GraphicsDevice device)
+		public info_decal(CBspFile scene,Vector3 p , string image_name , GraphicsDevice device, bool p_sangre=false)
         {
 			origin = p;
 			texture = scene.decals_tx_pool.insert(image_name, device);
+			blood = p_sangre;
 		}
 	};
 
@@ -727,8 +729,7 @@ namespace TGC.MonoGame.TP
 		}
 		public void createDecals()
 		{
-
-			VertexPositionTexture []vertices = new VertexPositionTexture[cant_decals*4];
+			VertexPositionTexture []vertices = new VertexPositionTexture[MAX_DECALS*4];
 			int t = 0;
 			for (int i = 0; i < cant_decals; ++i)
 			{
@@ -763,9 +764,53 @@ namespace TGC.MonoGame.TP
 					vertices[t++] = new VertexPositionTexture(p + u * du + v * dv, new Vector2(-1, 1));
 				}
 			}
-			decalsVertexBuffer = new VertexBuffer(device, VertexPositionTexture.VertexDeclaration, t, BufferUsage.WriteOnly);
-			decalsVertexBuffer.SetData(vertices, 0, t);
+			decalsVertexBuffer = new VertexBuffer(device, VertexPositionTexture.VertexDeclaration, MAX_DECALS, BufferUsage.WriteOnly);
+			if(t>0)
+				decalsVertexBuffer.SetData(vertices, 0, t);
+
 		}
+
+		public void addDecal(Vector3 origin, int nro_face , string model , bool sangre)
+		{
+			// verifico si esta suficientemente alejado del anterior, para evitar 
+			// una secuencia de tiros muy cerca
+			if (cant_decals>0 && (origin - decals[cant_decals - 1].origin).LengthSquared() < 50)
+				return;
+
+
+			Vector3 []face_v = g_faces[nro_face].v;
+
+			Vector3 n = Vector3.Cross(face_v[2] - face_v[0], face_v[1] - face_v[0]);
+			n.Normalize();
+			Vector3 up;
+			if (MathF.Abs(n.X) <= MathF.Abs(n.Y) && MathF.Abs(n.X) <= MathF.Abs(n.Z))
+				up = new Vector3(1, 0, 0);
+			else
+			if (MathF.Abs(n.Y) <= MathF.Abs(n.X) && MathF.Abs(n.Y) <= MathF.Abs(n.Z))
+				up = new Vector3(0, 1, 0);
+			else
+				up = new Vector3(0, 0, 1);
+
+			Vector3 v = Vector3.Cross(n, up);
+			v.Normalize();
+			Vector3 u = Vector3.Cross(n, v);
+			u.Normalize();
+
+			float du = sangre ? 25 : 5;
+			float dv = sangre ? 25 : 5;
+			float dn = g_faces[nro_face].nro_modelo > 0 ? 0.5f : -5f;
+
+			Vector3 p = origin - u * du * 0.5f - v * dv * 0.5f + n * dn;
+			VertexPositionTexture[] vertices = new VertexPositionTexture[4];
+			vertices[0] = new VertexPositionTexture(p, new Vector2(0, 0));
+			vertices[1] = new VertexPositionTexture(p + u * du, new Vector2(0, 1));
+			vertices[2] = new VertexPositionTexture(p + v * dv, new Vector2(-1, 0));
+			vertices[3] = new VertexPositionTexture(p + u * du + v * dv, new Vector2(-1, 1));
+
+			decalsVertexBuffer.SetData(cant_decals * 4 * 20, vertices, 0, 4, 20);
+			decals[cant_decals++] = new info_decal(this, origin, model, device,sangre);
+		}
+
 
 		public void Draw(Matrix World, Matrix View, Matrix Proj)
 		{
@@ -801,21 +846,6 @@ namespace TGC.MonoGame.TP
 				}
 			}
 
-			// decals
-			device.BlendState = BlendState.NonPremultiplied;
-			device.DepthStencilState = DepthStencilState.DepthRead;
-			device.SetVertexBuffer(decalsVertexBuffer);
-			for (int i = 0; i < cant_decals; ++i)
-			{
-				Effect.Parameters["ModelTexture"].SetValue(decals[i].texture != null ? decals[i].texture : texture_default);
-				foreach (var pass in Effect.CurrentTechnique.Passes)
-				{
-					pass.Apply();
-					device.DrawPrimitives(PrimitiveType.TriangleStrip, i * 4, 2);
-				}
-			}
-			device.DepthStencilState = DepthStencilState.Default;
-
 
 			// modelos estaticos
 			// primero layers opacos luego transparentes
@@ -836,7 +866,40 @@ namespace TGC.MonoGame.TP
 				// mejor lo activo, porque como no puedo dibujar en orden correcto, crea muchos artifacts
 				//device.DepthStencilState = DepthStencilState.DepthRead;
 			}
+			//device.DepthStencilState = DepthStencilState.Default;
+
+			// decals
+			Effect.CurrentTechnique = Effect.Techniques["Phong"];
+			device.BlendState = BlendState.NonPremultiplied;
+			device.DepthStencilState = DepthStencilState.DepthRead;
+			device.SetVertexBuffer(decalsVertexBuffer);
+			for (int i = 0; i < cant_decals; ++i)
+			if(!decals[i].blood)
+			{
+				Effect.Parameters["ModelTexture"].SetValue(decals[i].texture != null ? decals[i].texture : texture_default);
+				foreach (var pass in Effect.CurrentTechnique.Passes)
+				{
+					pass.Apply();
+					device.DrawPrimitives(PrimitiveType.TriangleStrip, i * 4, 2);
+				}
+			}
+
+			// sangre
+			Effect.CurrentTechnique = Effect.Techniques["Blood"];
+			for (int i = 0; i < cant_decals; ++i)
+				if (decals[i].blood)
+				{
+					Effect.Parameters["ModelTexture"].SetValue(decals[i].texture != null ? decals[i].texture : texture_default);
+					foreach (var pass in Effect.CurrentTechnique.Passes)
+					{
+						pass.Apply();
+						device.DrawPrimitives(PrimitiveType.TriangleStrip, i * 4, 2);
+					}
+				}
+
 			device.DepthStencilState = DepthStencilState.Default;
+
+
 
 			// debug bbb
 			if (cant_debug_bb > 0)

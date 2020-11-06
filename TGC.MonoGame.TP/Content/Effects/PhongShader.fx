@@ -118,6 +118,16 @@ float4 DebugBBPS() : COLOR
 	return float4(0.1,0.1,0,0.5);
 }
 
+
+
+float4 BloodPS(VertexShaderOutput input) : COLOR
+{
+	float4 clr = tex2D(textureSampler, input.TextureCoordinate.xy);
+	if (clr.r< clr.g+clr.b)
+		discard;
+	return clr;
+}
+
 technique Phong
 {
 	pass P0
@@ -148,6 +158,14 @@ technique DebugBB
 	}
 };
 
+technique Blood
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL MainVS();
+		PixelShader = compile PS_SHADERMODEL BloodPS();
+	}
+};
 
 
 
