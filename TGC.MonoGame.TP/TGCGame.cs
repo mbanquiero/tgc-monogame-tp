@@ -17,7 +17,8 @@ namespace TGC.MonoGame.TP
         public float soldier_height = 77;
 
         public const string cs_folder = "C:\\Counter-Strike Source\\cstrike\\";
-        public const string map_name = "cs_office";
+        public const string map_name = "cs_assault";
+            // "cs_office";
             // "cs_havana";
             //"de_mirage_csgo";
             //"cs_assault";
@@ -32,6 +33,10 @@ namespace TGC.MonoGame.TP
         public CPlayer player;
         public CEnemy[] enemigo = new CEnemy[MAX_ENEMIGOS];
         public Vector3 camPosition;
+
+        public const int MAX_HOSTAGES = 256;
+        public CEnemy[] hostage = new CEnemy[MAX_HOSTAGES];
+        public int cant_hostages = 0;
 
         public Effect EffectMesh;
         public CBspFile scene;
@@ -49,17 +54,20 @@ namespace TGC.MonoGame.TP
         public bool fisica = true;
         public bool pause = false;
 
-        // grabar gamelay
-        public bool recording = false;
-        public int cant_frames = 0;
-
         // modelos
         public Effect EffectSmd;
         public CWeapon weapon;
         public CSMDModel soldier;
+        public const int NUM_HOSTAGE = 4;
+        public CSMDModel []hostage_model = new CSMDModel[NUM_HOSTAGE];
 
         // mouse captured
+        public bool mouse_captured = true;
         public int mouse_ox, mouse_oy;
+
+        // opciones
+        public bool draw_hitpoints = false;
+        public bool draw_meshinfo = false;
 
         public CDebugBox debug_box;
 
@@ -91,7 +99,7 @@ namespace TGC.MonoGame.TP
             Projection.M11 *= -1;           // dif. de convencion con el motor de Source
             Graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
             Graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
-
+            Graphics.PreferredDepthStencilFormat = DepthFormat.Depth24Stencil8;
             //Graphics.PreferredBackBufferWidth = 800;
             //Graphics.PreferredBackBufferHeight = 600;
 
@@ -135,6 +143,15 @@ namespace TGC.MonoGame.TP
             soldier_height = soldier.size.Y;
             soldier.debugEffect = EffectMesh;
 
+            // Hostage
+            for (int i = 0; i < NUM_HOSTAGE; ++i)
+            {
+                hostage_model[i] = new CSMDModel("characters\\hostage_0"+(i+1).ToString(), GraphicsDevice, Content, cs_folder);
+                hostage_model[i].cargar_ani("characters\\hostage_0"+(i + 1).ToString()+"_anims", "ragdoll");
+                hostage_model[i].anim[0].loop = false;
+                hostage_model[i].debugEffect = EffectMesh;
+            }
+
 
             // huevo de pascuas
             tgcLogo = Content.Load<Model>("Models/tgc-logo/tgc-logo");
@@ -166,12 +183,18 @@ namespace TGC.MonoGame.TP
             }
 
             enemigo[0].PrevPosition = enemigo[0].Position = new Vector3(6447, -800, 6276);
-            //enemigo[0].PrevPosition = enemigo[0].Position = new Vector3(7242, -400, 5116);
             enemigo[0].Direction = new Vector3(0, 0, -1);
+            player.Position = scene.info_player_start_pos;
+            player.Direction = new Vector3(0, 0, 1);
 
-            //player.Position = new Vector3(6447, -800, 6376);
-            player.Position = scene.cg;
-            player.Direction = new Vector3(0,0,1);
+            cant_hostages = scene.cant_hostages;
+            for (int i = 0; i < cant_hostages; ++i)
+            {
+                hostage[i] = new CEnemy(scene, this, hostage_model[i%4]);
+                hostage[i].Position = scene.hostages[i].origin;
+                hostage[i].Position.Y += hostage_model[i % 4].cg.Y;
+                hostage[i].currentAnimation = 0;
+            }
 
             base.LoadContent();
         }
@@ -180,7 +203,6 @@ namespace TGC.MonoGame.TP
         public void UpdateGame(GameTime gameTime)
         {
             float elapsed_time = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            //elapsed_time /= 6.0f;
 
             var keyState = Keyboard.GetState();
             if (keyState.IsKeyDown(Keys.Escape))
@@ -207,32 +229,38 @@ namespace TGC.MonoGame.TP
             else
                 keyDown[(int)Keys.T] = false;
 
-            // record
-            if (keyState.IsKeyDown(Keys.R))
+            // capturar mouse
+            if (keyState.IsKeyDown(Keys.M))
             {
-                if (!keyDown[(int)Keys.R])
-                    recording = !recording;
-                keyDown[(int)Keys.R] = true;
-            }
-            else
-                keyDown[(int)Keys.R] = false;
+                if (!keyDown[(int)Keys.M])
+                    mouse_captured = !mouse_captured;
+                keyDown[(int)Keys.M] = true;
 
-            // SAVE
-            if (keyState.IsKeyDown(Keys.S))
-            {
-                if (!keyDown[(int)Keys.S])
-                { 
-                    recording = false;
-                    // grabo todo a disco
-                    for(int i=0;i<cant_frames;++i)
-                    {
-                        dat2jpg(i);
-                    }
-                }
-                keyDown[(int)Keys.S] = true;
+                IsMouseVisible = !mouse_captured;
             }
             else
-                keyDown[(int)Keys.S] = false;
+                keyDown[(int)Keys.M] = false;
+
+            // dibujar hitpoints
+            if (keyState.IsKeyDown(Keys.H))
+            {
+                if (!keyDown[(int)Keys.H])
+                    draw_hitpoints = !draw_hitpoints;
+                keyDown[(int)Keys.H] = true;
+            }
+            else
+                keyDown[(int)Keys.H] = false;
+
+            // dibujar mesh info
+            if (keyState.IsKeyDown(Keys.I))
+            {
+                if (!keyDown[(int)Keys.I])
+                    draw_meshinfo= !draw_meshinfo;
+                keyDown[(int)Keys.I] = true;
+            }
+            else
+                keyDown[(int)Keys.I] = false;
+
 
             if (keyState.IsKeyDown(Keys.P))
             {
@@ -287,6 +315,7 @@ namespace TGC.MonoGame.TP
 
             }
 
+
             // camara primera persona
             // la pos.Y = pos suelo + soldier_height/2 
             // pos camara = pos.Y + soldier_height/2  - epsilon (en pulgadas)
@@ -309,36 +338,50 @@ namespace TGC.MonoGame.TP
 
             // escenario
             scene.Draw(Matrix.Identity, View, Projection);
+
             // arma
             weapon.Draw(EffectSmd, View, Projection);
+
             // enemigos
             for (int i = 0; i < MAX_ENEMIGOS; ++i)
             {
                 var e = enemigo[i];
                 e.computeHitpoints();
                 e.Draw(GraphicsDevice, EffectSmd, View, Projection);
-                //e.drawHitPoints(GraphicsDevice, debug_box, EffectMesh, View, Projection);
+                if(draw_hitpoints)
+                    e.drawHitPoints(GraphicsDevice, debug_box, EffectMesh, View, Projection);
+            }
+
+            // hostages
+            for (int i = 0; i < cant_hostages; ++i)
+            {
+                hostage[i].Draw(GraphicsDevice, EffectSmd, View, Projection);
             }
 
             tgcLogo.Draw(Matrix.CreateScale(2.0f)*
                 Matrix.CreateRotationY(MathHelper.Pi*(float)gameTime.TotalGameTime.TotalSeconds*0.5f)
                     *Matrix.CreateTranslation(3500,710,5900), View, Projection);
-
             skybox.Draw(GraphicsDevice, scene.p_min*1.5f, scene.p_max * 1.5f, EffectMesh, View, Projection);
-
             spriteBatch.Begin();
-            if (recording)
-                spriteBatch.DrawString(font, "grabando...", new Vector2(10, 50), Color.YellowGreen);
 
-            // drawWeaponDesf();
-            // drawMeshInfo();
+            drawWeaponDesf();
             // drawEnemyInfo();
 
+            if (draw_meshinfo)
+                 drawMeshInfo();
+
+            
 
             int framerate = (int)(1 / gameTime.ElapsedGameTime.TotalSeconds);
             spriteBatch.DrawString(font, "FPS:" + framerate, new Vector2(10, 10), Color.YellowGreen);
             //spriteBatch.DrawString(font, "(" + player.Position.X+ " , "+ player.Position.Y + " ," + player.Position.Z + ")", 
             //        new Vector2(10, 100), Color.YellowGreen);
+
+/*            if(player.on_door)
+            {
+                spriteBatch.DrawString(font, "Pulse SHIFT para abrir la puerta", new Vector2(400, 300), Color.YellowGreen);
+            }*/
+
             spriteBatch.End();
 
             CDebugLine.Draw(GraphicsDevice, new Vector3(-30,0,0.5f), new Vector3(30, 0, 0.5f),
@@ -348,14 +391,10 @@ namespace TGC.MonoGame.TP
                     EffectMesh, Matrix.CreateScale(1.0f / (float)GraphicsDevice.Viewport.Width, 1.0f / (float)GraphicsDevice.Viewport.Height, 1),
                         Matrix.Identity, Matrix.Identity);
 
+            scene.DrawMap(player,enemigo);
 
             base.Draw(gameTime);
-
-            if(recording)
-            {
-                screenShoot();
-                ++cant_frames;
-            }
+          
 
         }
 
@@ -364,11 +403,14 @@ namespace TGC.MonoGame.TP
             // muestra los desf del arma
             var W = weapon.weapons[weapon.cur_weapon];
             spriteBatch.DrawString(font, "X:" + W.desf.X + "  Y:" + W.desf.Y + "  Z:" + W.desf.Z +
-              "  Pitch=" + W.pitch + "  Yaw=" + W.yaw, new Vector2(10, 50), Color.YellowGreen);
+              "  Pitch=" + W.pitch + "  Yaw=" + W.yaw, new Vector2(10, 500), Color.YellowGreen);
+            spriteBatch.DrawString(font, "X:" + W.muzzle_pos.X + "  Y:" + W.muzzle_pos.Y + "  Z:" + W.muzzle_pos.Z,
+              new Vector2(10, 550), Color.YellowGreen);
         }
 
         public void drawMeshInfo()
         {
+            var H = GraphicsDevice.PresentationParameters.BackBufferHeight;
             MouseState state = Mouse.GetState();
             var p0 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 0), Projection, View, Matrix.Identity);
             var p1 = GraphicsDevice.Viewport.Unproject(new Vector3(state.X, state.Y, 1), Projection, View, Matrix.Identity);
@@ -381,9 +423,9 @@ namespace TGC.MonoGame.TP
                     var modelo = scene.modelos[face.nro_modelo];
                     var mesh = scene.mesh_pool.meshes[modelo.nro_mesh];
                     spriteBatch.DrawString(font, mesh.name +
-                            "  dx=" + mesh.size.X + "dy= " + mesh.size.Y + " dz=" + mesh.size.Z + 
+                            "  x=" + modelo.origin.X + "y= " + modelo.origin.Y + " z=" + modelo.origin.Z + 
                             " #"+ modelo.nro_mesh
-                        , new Vector2(10, 50), Color.YellowGreen);
+                        , new Vector2(10, H-50), Color.YellowGreen);
                 }
             }
         }
@@ -440,6 +482,7 @@ namespace TGC.MonoGame.TP
 
         public void screenShoot()
         {
+            /*
             int w = GraphicsDevice.PresentationParameters.BackBufferWidth;
             int h = GraphicsDevice.PresentationParameters.BackBufferHeight;
             int[] backBuffer = new int[w * h];
@@ -458,7 +501,7 @@ namespace TGC.MonoGame.TP
                 return;
             }
 
-
+            */
                 /*
                 Stream stream = File.OpenWrite("c:\\tmp_counter\\frame" + curr_frame.ToString("000") + ".dat");
                 //copy into a texture 

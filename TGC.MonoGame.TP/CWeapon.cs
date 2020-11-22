@@ -14,22 +14,23 @@ namespace TGC.MonoGame.TP
         // desfasajes para ubicar en el soldado
         public Vector3 desf = new Vector3(-4, -1, -14);
         public Vector3 scale = new Vector3(1, 1, 1);
+        public Vector3 muzzle_pos = new Vector3(0, 0, 0);
         public float pitch = 80;
         public float yaw = 0;
         public int cant_tiros = 20;
         public int cant_tiros_max = 20;
 
         public weapon_reference(string weapon_name, GraphicsDevice p_device, ContentManager p_content, string p_folder,
-            string ani_idle, string ani_reload , string ani_shoot , int mazzle_attach=-1)
+            string ani_idle, string ani_reload , string ani_shoot)
         {
             model = new CSMDModel(weapon_name, p_device, p_content, p_folder);
             String ani_folder = weapon_name + "_anims";
             model.cargar_ani(ani_folder, ani_idle);
             model.cargar_ani(ani_folder, ani_reload);
             model.cargar_ani(ani_folder, ani_shoot);
-            model.w_attachment = mazzle_attach;
             model.anim[1].loop = false;
             model.setAnimation(0);
+
         }
 
 
@@ -51,10 +52,12 @@ namespace TGC.MonoGame.TP
         public int cant_weapons;
         public weapon_reference[] weapons = new weapon_reference[32];
 
+        public CSprite sp;
 
         // estado actual del arma
         public int status = 0;      // 0-> idle, 1->firing, 2->reloading
         public float timer_tiro = 0.1f;
+
 
         public CWeapon(TGCGame p_game, GraphicsDevice p_device, ContentManager p_content, string p_folder)
         {
@@ -65,32 +68,78 @@ namespace TGC.MonoGame.TP
 
             // Arma
             String[] W = {
-                "v_rif_ak47" , "ak47_idle","ak47_reload","ak47_fire1","63",
-                "v_rif_galil" , "idle","reload","shoot1" , "38",
-                "v_357" , "idle01","reload","fire" , "22" ,
+                "v_rif_famas","idle","reload","shoot1",
+                "v_rif_aug" , "idle","reload","shoot1",
+                "v_rif_ak47" , "ak47_idle","ak47_reload","ak47_fire1",
+                "v_pist_deagle" , "idle1","reload","shoot1",
+                "v_knife_t","idle","draw","stab",
+                "v_rif_galil" , "idle","reload","shoot1" };
+
+
+                /*
+                 *                 "v_357" , "idle01","reload","fire" , "22" ,
                 "v_pist_elite","idle","reload","shoot_right1","48",
                 "v_rif_famas","idle","reload","shoot1","40",
                 "v_rpg","idle1","reload","fire","1",
-                "v_shotgun","idle01","reload1","fire","-1",
-                "v_stunbaton","idle01","draw","attackcm","-1",
-                "v_superphyscannon","idle","chargeup","fire","12" };
-
-
+                "v_shotgun","idle01","reload1","fire","-1" };
+*/
+            //                "v_stunbaton","idle01","draw","attackcm","-1",
+            //                "v_superphyscannon","idle","chargeup","fire","12" };
+            //"v_rif_ak47" , "ak47_idle","ak47_reload","ak47_fire1","63",
 
             int t = 0;
             while(t<W.Length)
             {
-                String weapon_name = "weapons\\"+W[t++];
-                weapons[cant_weapons++] = new weapon_reference(weapon_name, device, Content, cs_folder,
-                        W[t++], W[t++], W[t++], int.Parse(W[t++]));
+                String weapon_name = W[t++];
+                String file_name = "weapons\\"+weapon_name+"\\"+weapon_name;
+                weapons[cant_weapons++] = new weapon_reference(file_name, device, Content, cs_folder,
+                        W[t++], W[t++], W[t++]);
             }
 
-            // sobrecargo la ak47 
-            weapons[0].pitch = 76;
-            weapons[0].yaw = 14;
-            weapons[0].desf = new Vector3(-5, -6, -15);
-            weapons[0].scale = new Vector3(1, 1, -1);
 
+            int k = 0;
+
+            // famas
+            weapons[k].pitch = 79;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-11, -3, -9);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(0,0,0);
+            k++;
+
+            // aug
+            weapons[k].pitch = 76;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-5, -6, -15);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(-0.20f, 2.70f, 14.00f);
+            k++;
+
+            // ak47 
+            weapons[k].pitch = 76;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-5, -6, -15);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(0,3.50f,19.00f);
+            k++;
+
+            // pist Eagle
+            weapons[k].pitch = 71;
+            weapons[k].yaw = 10;
+            weapons[k].desf = new Vector3(-14, -1.5f, -14);
+            weapons[k].muzzle_pos = new Vector3(0, 2.75f, 6.50f);
+            //weapons[k].model.anim[2].frameRate = 10;
+
+
+            // correccion muzzle_pos
+            for (int i=0;i<cant_weapons;++i)
+                weapons[i].muzzle_pos = new Vector3(weapons[i].muzzle_pos.X, -weapons[i].muzzle_pos.Z, weapons[i].muzzle_pos.Y);
+
+            // otros efectos
+            sp = new CSprite("effects\\muzzleflashx", device, Content);
+            sp.rendercolor = new Vector3(1, 1, 1);
+            sp.scale = 0.1f;
+            sp.renderamt = 1;
 
         }
 
@@ -116,7 +165,7 @@ namespace TGC.MonoGame.TP
         {
             var W = weapons[cur_weapon];
             var m = W.model;
-            float k = m.cur_anim == 2 ? 10 : 2;
+            float k = m.cur_anim == 2 ? 3 : 2;
             m.update(elapsed_time * k);
 
             float s = 0.05f;
@@ -141,12 +190,21 @@ namespace TGC.MonoGame.TP
             if (keyState.IsKeyDown(Keys.Q)) W.desf.Y += s;
             if (keyState.IsKeyDown(Keys.A)) W.desf.Y -= s;
 
-
+               if (keyState.IsKeyDown(Keys.NumPad1)) W.muzzle_pos.X -= s;
+               if (keyState.IsKeyDown(Keys.NumPad2)) W.muzzle_pos.Y -= s;
+               if (keyState.IsKeyDown(Keys.NumPad3)) W.muzzle_pos.Z -= s;
+                if (keyState.IsKeyDown(Keys.NumPad4)) W.muzzle_pos.X += s;
+                if (keyState.IsKeyDown(Keys.NumPad5)) W.muzzle_pos.Y += s;
+                if (keyState.IsKeyDown(Keys.NumPad6)) W.muzzle_pos.Z += s;
+            
             if (keyState.IsKeyDown(Keys.PageDown))
             {
                 if (!game.keyDown[(int)Keys.PageDown])
                 {
-                    cur_weapon = (cur_weapon + 1) % cant_weapons;
+                    if (++cur_weapon >= cant_weapons)
+                        cur_weapon = 0;
+                    W = weapons[cur_weapon];
+                    m = W.model;
                     status = W_RELOADING;
                     m.currentTime = 0;
                     m.setAnimation(1);
@@ -160,8 +218,11 @@ namespace TGC.MonoGame.TP
             {
                 if (!game.keyDown[(int)Keys.PageUp])
                 {
-                    cur_weapon = (cur_weapon - 1) % cant_weapons;
+                    if (--cur_weapon < 0)
+                        cur_weapon = cant_weapons - 1;
                     status = W_RELOADING;
+                    W = weapons[cur_weapon];
+                    m = W.model;
                     m.currentTime = 0;
                     m.setAnimation(1);
                 }
@@ -172,11 +233,8 @@ namespace TGC.MonoGame.TP
 
             MouseState state = Mouse.GetState();
 
-            var sp = game.scene.sprites[game.scene.spt_muzzle];
             if (status==W_RELOADING)
             {
-                // pongo el sprite detras de camara para que no se vea
-                sp.origin = game.camPosition - game.player.Direction * 1000;
                 if (m.anim[m.cur_anim].finished)
                 {
                     status = W_IDLE;
@@ -201,36 +259,48 @@ namespace TGC.MonoGame.TP
                         m.setAnimation(1);
                     }
                 }
-
-                var World= getTransform();
-
-                if(m.w_attachment>0)
-                {
-                    var p0 = Vector3.Transform(m.bones[m.w_attachment].Position, m.invMetric);
-                    sp.origin = Vector3.Transform(p0, World);
-                    sp.renderamt = MathF.Abs(MathF.Cos(m.currentTime * 50.0f));
-                }
-                else
-                {
-                    sp.origin = game.camPosition - game.player.Direction * 1000;
-                }
             }
             else
             {
                 status = W_IDLE;
                 m.setAnimation(0);
-                // pongo el sprite detras de camara para que no se vea
-                sp.origin = game.camPosition - game.player.Direction * 1000;
             }
-
         }
 
-        public void Draw(Effect effect,Matrix View, Matrix Proj)
+        public void Draw(Effect effect, Matrix View, Matrix Proj)
         {
             var W = weapons[cur_weapon];
             var m = W.model;
             var world = getTransform();
             m.Draw(device, effect, world, View, Proj);
+
+
+            if (status == W_FIRING)
+            {
+                sp.origin = Vector3.Transform(m.bones[0].Position +W.muzzle_pos , m.invMetric * world);
+                sp.renderamt = Math.Max(0, MathF.Cos(m.currentTime * 50.0f));
+                sp.scale = 0.1f;
+
+                // env sprites
+                var effectSprite = game.scene.EffectMesh;
+                effectSprite.CurrentTechnique = effectSprite.Techniques["SpriteDrawing"];
+                var ant_blend_state = device.BlendState;
+                device.BlendState = BlendState.Additive;
+                var ant_z_state = device.DepthStencilState;
+                var depthState = new DepthStencilState();
+                depthState.DepthBufferEnable = true;
+                depthState.DepthBufferWriteEnable = false;
+                device.DepthStencilState = depthState;
+
+                effectSprite.Parameters["View"].SetValue(Matrix.Identity);
+                effectSprite.Parameters["Projection"].SetValue(Proj);
+                // el false es para que no lo tome como un DECAL y no modifique la pos. Z
+                sp.Draw(game.scene.spriteVertexBuffer, effectSprite, View , false);
+                device.BlendState = ant_blend_state;
+                device.DepthStencilState = ant_z_state;
+
+            }
+
         }
 
     }

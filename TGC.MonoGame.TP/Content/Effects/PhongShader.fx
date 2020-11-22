@@ -27,6 +27,7 @@ struct VertexShaderOutput
 	float2 TextureCoordinate : TEXCOORD1;
 	float3 WorldPos: TEXCOORD2;
 	float2 LightmapCoordinate: TEXCOORD3;
+	float4 sPos: TEXCOORD4;
 };
 
 
@@ -63,7 +64,7 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 	float4 viewPosition = mul(worldPosition, View);
 
 	// Project position
-	output.Position = mul(viewPosition, Projection);
+	output.sPos = output.Position = mul(viewPosition, Projection);
 
 	// Propagate texture coordinates
 	output.TextureCoordinate = input.TextureCoordinate;
@@ -128,6 +129,57 @@ float4 BloodPS(VertexShaderOutput input) : COLOR
 	return clr;
 }
 
+
+float4 MapPS(VertexShaderOutput input) : COLOR
+{
+	float2 vPos = input.sPos.xy / input.sPos.w;
+	float d = dot(vPos, vPos);
+	if (d > 0.95)
+		discard;
+
+	float4 clr = tex2D(textureSampler, input.TextureCoordinate.xy);
+	vPos = normalize(vPos);
+	if (vPos.y > 0.7)
+		clr *= 0.8;
+	else
+		clr *= 0.2;
+	return clr;
+}
+
+
+VertexShaderOutput ClearVS(in VertexShaderInput input)
+{
+	VertexShaderOutput output = (VertexShaderOutput)0;
+	output.Position = input.Position;
+	output.TextureCoordinate = input.TextureCoordinate;
+	return output;
+}
+
+
+float4 ClearPS(VertexShaderOutput input) : COLOR
+{
+	float2 vPos = 2 * input.TextureCoordinate - 1;
+	float d = dot(vPos, vPos);
+	if (d > 1)
+		discard;
+	return d > 0.95 ? float4(0.5, 0.5, 0.5,1) : float4(0,0,0,1);
+}
+
+VertexShaderOutput DrawImageVS(in VertexShaderInput input)
+{
+	VertexShaderOutput output = (VertexShaderOutput)0;
+	output.Position = mul(input.Position, World);
+	output.TextureCoordinate = input.TextureCoordinate;
+	return output;
+}
+
+float4 DrawImagePS(VertexShaderOutput input) : COLOR
+{
+	return tex2D(textureSampler, input.TextureCoordinate.xy);
+}
+
+
+
 technique Phong
 {
 	pass P0
@@ -167,5 +219,34 @@ technique Blood
 	}
 };
 
+
+technique Map
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL MainVS();
+		PixelShader = compile PS_SHADERMODEL MapPS();
+	}
+};
+
+
+
+technique ClearScreen
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL ClearVS();
+		PixelShader = compile PS_SHADERMODEL ClearPS();
+	}
+};
+
+technique DrawImage
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL DrawImageVS();
+		PixelShader = compile PS_SHADERMODEL DrawImagePS();
+	}
+};
 
 

@@ -18,6 +18,7 @@ namespace TGC.MonoGame.TP
         public const int MOUSE_NOT_INIT = 100000;
         public Vector3 Position = new Vector3(0,0,0);
         public Vector3 Direction = new Vector3(0,0,1);
+        public float speed = 0; 
         public Vector3 PrevPosition;
         public float dist = 0;      // dist, recorrida
         public int mouse_x = MOUSE_NOT_INIT;
@@ -25,10 +26,11 @@ namespace TGC.MonoGame.TP
         public CBspFile scene;
         public bool colission = false;
         public bool on_ground = false;
+        public bool on_door = false;
         public TGCGame game;
         public float Height;
         public float vel_mouse = 0.25f;
-        public float vel_lineal = 350f;
+        public float vel_lineal = 450f;
 
         public CPlayer(CBspFile p_scene , TGCGame p_game)
         {
@@ -54,7 +56,7 @@ namespace TGC.MonoGame.TP
             }
 
             MouseState state = Mouse.GetState();
-            //if (state.LeftButton == ButtonState.Pressed)
+            if(game.mouse_captured)
             {
                 int dx = state.X - mouse_x;
                 int dy = state.Y - mouse_y;
@@ -63,10 +65,6 @@ namespace TGC.MonoGame.TP
                 Direction = Vector3.TransformNormal(Direction, Matrix.CreateFromAxisAngle(N, dy * vel_mouse * elapsed_time));
                 Mouse.SetPosition(mouse_x, mouse_y);
             }
-
-            //mouse_x = state.X;
-            //mouse_y = state.Y;
-
 
 
             PrevPosition = Position;
@@ -92,6 +90,7 @@ namespace TGC.MonoGame.TP
         {
             colission = false;
             on_ground = false;
+            on_door = false;
             Vector3 dir = Position - PrevPosition;
             if (dir.LengthSquared() > 0)
             {
@@ -99,8 +98,19 @@ namespace TGC.MonoGame.TP
                 float s = scene.intersectSegment(PrevPosition, PrevPosition + dir * 50,out ip_data ip0);
                 if (s < 1000)
                 {
-                    Position = PrevPosition;
-                    colission = true;
+                    var n = scene.g_faces[ip0.nro_face].nro_modelo;
+                    on_door = n>=0 && (scene.modelos[n].flags & CBspFile.PROP_DOOR_ROTATING) != 0;
+                    // abro la puerta
+                    if (on_door)
+                    {
+                        scene.modelos[n].angles.Y += 0.1f;
+                    }
+                    else
+                    {
+                        Position = PrevPosition;
+                        colission = true;
+                    }
+
                 }
             }
 
@@ -113,16 +123,18 @@ namespace TGC.MonoGame.TP
             }
             */
             float t = scene.intersectSegment(Position, Position - new Vector3(0, 100, 0), out ip_data ip1);
-            if (t < 1000)
+            if (t < 100)
             {
                 // toca piso
                 Position.Y -= t * 100 - Height/2;
                 on_ground = true;
+                speed = 0;
             }
             else
             {
                 // esta en el aire
-                Position.Y -= elapsed_time * 250;
+                speed += elapsed_time * 386.0f;
+                Position.Y -= elapsed_time * speed;
             }
         }
 

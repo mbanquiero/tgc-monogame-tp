@@ -28,6 +28,7 @@ struct VertexShaderOutput
 	float2 TextureCoordinate : TEXCOORD1;
 	float3 WorldPos: TEXCOORD2;
 	float3 Normal: TEXCOORD3;
+	float4 sPos: TEXCOORD4;
 };
 
 
@@ -62,13 +63,12 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 	float4 worldPosition = mul(input.Position, World);
 	float4 viewPosition = mul(worldPosition, View);
 	// Project position
-	output.Position = mul(viewPosition, Projection);
+	output.sPos = output.Position = mul(viewPosition, Projection);
 
 	// Normal
 	output.Normal = mul ( (float3x3)World, input.Normal );
 
 	// Propagate texture coordinates
-	//output.TextureCoordinate = float2(input.TextureCoordinate.x, -input.TextureCoordinate.y);
 	output.TextureCoordinate = float2(input.TextureCoordinate.x, input.TextureCoordinate.y);
 
 	// Pos en world
@@ -110,6 +110,35 @@ float4 SkyboxPS(VertexShaderOutput input) : COLOR
 	return tex2D(skyboxSampler, input.TextureCoordinate);
 }
 
+// para dibujar el mapa
+
+float4 MapPS(VertexShaderOutput input) : COLOR
+{
+	float2 vPos = input.sPos.xy / input.sPos.w;
+	float d = dot(vPos, vPos);
+	if (d > 0.95)
+		discard;
+
+	float u = input.TextureCoordinate.x;
+	float v = input.TextureCoordinate.y;
+	float4 clr = tex2D(textureSampler, float2(u, v));
+	if (clr.a < AlphaTestReference)
+		discard;
+	float3 LightPos = float3(1000, 5000, 1000);
+	float3 L = normalize(LightPos - input.WorldPos);
+	float3 N = normalize(input.Normal);
+	float kd = abs(dot(N, L)) * 0.6 + 0.3;
+	clr.rgb *= kd;
+	vPos = normalize(vPos);
+	if (vPos.y > 0.707)
+		clr *= 0.8;
+	else
+		clr *= 0.2;
+	return clr;
+}
+
+
+
 technique TextureDrawing
 {
 	pass P0
@@ -147,3 +176,11 @@ technique SkyboxDrawing
 	}
 };
 
+technique Map
+{
+	pass P0
+	{
+		VertexShader = compile VS_SHADERMODEL MainVS();
+		PixelShader = compile PS_SHADERMODEL MapPS();
+	}
+};

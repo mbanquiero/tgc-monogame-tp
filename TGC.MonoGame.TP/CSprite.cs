@@ -77,17 +77,26 @@ namespace TGC.MonoGame.TP
             texture = tx_pool.insert(image_name, device);
         }
 
-        public void Draw(VertexBuffer vertexBuffer, Effect Effect , Matrix View)
+        public void Draw(VertexBuffer vertexBuffer, Effect Effect , Matrix View , bool decal = true)
         {
             // El quad esta siempre orientado a la camara, para ello
             // 1- pongo la matrix de view en identiy (eso lo hace el scene una sola vez antes de tirar todos los sprites
             // 2 -la traslacion se calcula en el espacio de la camara, (o sea multiplico x View)
             device.SetVertexBuffer(vertexBuffer);
             Vector3 pos = Vector3.Transform(origin, View);
-            if(texture!=null)
-                pos.Z += texture.Width * 0.1f;
-            
-            Matrix world = Matrix.CreateScale(texture.Width*0.5f*scale) * Matrix.CreateTranslation(pos);
+            Matrix S;
+            if (texture != null)
+            {
+                // aleja la Z para dar sensacion que el quad es un cubo 
+                //
+                if(decal)
+                    pos.Z += texture.Width * 0.1f;
+                S = Matrix.CreateScale(texture.Width * 0.5f * scale);
+            }
+            else
+                S = Matrix.CreateScale(scale);
+
+            Matrix world = S * Matrix.CreateTranslation(pos);
             Effect.Parameters["World"].SetValue(world);
             if (texture != null)
                 Effect.Parameters["ModelTexture"].SetValue(texture);

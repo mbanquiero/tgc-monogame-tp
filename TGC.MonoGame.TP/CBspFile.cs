@@ -58,6 +58,7 @@ namespace TGC.MonoGame.TP
 		public int nro_mesh;		
 		public Vector3 origin;
 		public Vector3 angles;
+		public int flags;
 
 		public Matrix world()
         {
@@ -119,18 +120,31 @@ namespace TGC.MonoGame.TP
 		}
 	};
 
+	public class info_hostage
+	{
+		public Vector3 origin;
+		public Vector3 angles;
+	};
+
 	public class CBspFile
 	{
+
+		public const int PROP_DOOR_ROTATING = 1;
+
 		public Vector3 p_min;
 		public Vector3 p_max;
 		public Vector3 size;
 		public Vector3 cg;
+		public Vector3 info_player_start_pos = new Vector3(0, 0, 0);
+		public Vector3 info_player_start_angles = new Vector3(0, 0, 0);
 		public int cant_subsets;
 		public bsp_subset[] subset;
 		public Texture2D[] texture;
 		public Texture2D texture_default;
 		public Texture2D lightmap;
 		public string folder_textures;
+		public info_hostage[] hostages = new info_hostage[256];
+		public int cant_hostages = 0;
 
 		public GraphicsDevice device;
 		public ContentManager Content;
@@ -162,7 +176,12 @@ namespace TGC.MonoGame.TP
 		public const int MAX_SPRITES = 4096;
 		public int cant_sprites = 0;
 		public CSprite[] sprites = new CSprite[MAX_SPRITES];
-		public int spt_muzzle;
+
+		//gui
+		public const int MAX_IMAGES = 4096;
+		public int cant_images = 0;
+		public Texture2D[] images = new Texture2D[MAX_IMAGES];
+
 
 		// modelos
 		public const int MAX_MODELOS = 4096;
@@ -175,7 +194,7 @@ namespace TGC.MonoGame.TP
 
 		// decals
 		public const int MAX_DECALS = 4096;
-		public int cant_decals;
+		public int cant_decals = 0;
 		public info_decal[] decals = new info_decal[MAX_DECALS];
 		public VertexBuffer decalsVertexBuffer;
 		public CTexturePool decals_tx_pool = new CTexturePool();
@@ -198,7 +217,7 @@ namespace TGC.MonoGame.TP
 			// cargo las entidades
 			cargarEntidades(fname);
 			createSpriteQuad();
-
+			
 			// experimento kdtree con toda la escena + los mesh
 			g_cant_faces = cant_faces;
 			for (int i = 0; i < cant_modelos; ++i)
@@ -290,16 +309,27 @@ namespace TGC.MonoGame.TP
 			kd_tree = new KDTree(g_cant_faces, g_faces);
 			kd_tree.createKDTree();
 
-			// otros efectos
-			var sp = sprites[spt_muzzle = cant_sprites++] = new CSprite("effects\\muzzleflashx", device, Content);
-			sp.rendercolor = new Vector3(1, 1, 1);
-			sp.scale = 0.1f;
-			sp.renderamt = 1;
+
+			// imagenes
+			images[cant_images++] = cargarImagen("sprites\\redglow4");
+			images[cant_images++] = cargarImagen("sprites\\dot");
+			images[cant_images++] = cargarImagen("sprites\\orangecore1");
+			images[cant_images++] = cargarImagen("sprites\\laserdot");
+
 
 			// decals
 			createDecals();
 
 		}
+
+
+		public Texture2D cargarImagen(string image_name)
+        {
+			var name = que_tga_name(image_name);
+			var tga = tex_folder + name + ".tga";
+			return CTextureLoader.Load(device, tga);
+		}
+
 
 		public string getString(byte[] arrayByte, int offset, int len)
 		{
@@ -512,19 +542,19 @@ namespace TGC.MonoGame.TP
 			VertexPositionTexture[] vertices = new VertexPositionTexture[6];
 			vertices[0].Position.X = -1;
 			vertices[0].Position.Y = -1;
-			vertices[0].Position.Z =  0;
+			vertices[0].Position.Z =  0.5f;
 			vertices[0].TextureCoordinate.X = 0;
 			vertices[0].TextureCoordinate.Y = 0;
 
 			vertices[1].Position.X = -1;
 			vertices[1].Position.Y = 1;
-			vertices[1].Position.Z = 0;
+			vertices[1].Position.Z = 0.5f;
 			vertices[1].TextureCoordinate.X = 0;
 			vertices[1].TextureCoordinate.Y = 1;
 
 			vertices[2].Position.X = 1;
 			vertices[2].Position.Y = -1;
-			vertices[2].Position.Z = 0;
+			vertices[2].Position.Z = 0.5f;
 			vertices[2].TextureCoordinate.X = 1;
 			vertices[2].TextureCoordinate.Y = 0;
 
@@ -533,7 +563,7 @@ namespace TGC.MonoGame.TP
 
 			vertices[5].Position.X = 1;
 			vertices[5].Position.Y = 1;
-			vertices[5].Position.Z = 0;
+			vertices[5].Position.Z = 0.5f;
 			vertices[5].TextureCoordinate.X = 1;
 			vertices[5].TextureCoordinate.Y = 1;
 
@@ -542,6 +572,7 @@ namespace TGC.MonoGame.TP
 
 
 		}
+
 
 		public Vector3 parseVector3(string s)
         {
@@ -664,6 +695,15 @@ namespace TGC.MonoGame.TP
 							p.origin = origin;
 							p.angles = angles;
 							p.nro_mesh = mesh_pool.insert(model, device, Content, cs_folder);
+
+							if (classname == "prop_door_rotating")
+							{
+								// caso particular: es una puerta que gira
+								p.flags |= PROP_DOOR_ROTATING;
+							}
+
+
+
 							Debug.WriteLine(model + " " + origin + "  " + angles);
 
 						}
@@ -695,6 +735,19 @@ namespace TGC.MonoGame.TP
 						{
 							model = model.Replace("materials/", "").Replace(".vmt", "");
 							decals[cant_decals++] = new info_decal(this,origin,model,device);
+						}
+						else
+						if(classname == "info_player_start")
+                        {
+							info_player_start_pos = origin;
+							info_player_start_angles = angles;
+						}
+						else
+						if (classname == "hostage_entity")
+						{
+							var h = hostages[cant_hostages++] = new info_hostage();
+							h.origin = origin;
+							h.angles = angles;
 						}
 						break;
 
@@ -821,7 +874,8 @@ namespace TGC.MonoGame.TP
 			Effect.Parameters["Projection"].SetValue(Proj);
 			Effect.Parameters["Lightmap"].SetValue(lightmap);
 
-			device.BlendState = BlendState.AlphaBlend;
+			//device.BlendState = BlendState.AlphaBlend;
+			device.BlendState = BlendState.Opaque;
 
 			// escenario estatico
 			var pos = 0;
@@ -899,8 +953,6 @@ namespace TGC.MonoGame.TP
 
 			device.DepthStencilState = DepthStencilState.Default;
 
-
-
 			// debug bbb
 			if (cant_debug_bb > 0)
 			{
@@ -937,6 +989,161 @@ namespace TGC.MonoGame.TP
 
 		}
 
+		public void DrawMap(CPlayer player, CEnemy []enemigo)
+		{
+
+			Vector3 Position = player.Position;
+			Vector3 Direction = player.Direction;
+
+		    Viewport ant_vp = device.Viewport;
+			var vp = new Viewport();
+			vp.X = 10;
+			vp.Y = 50;
+			float aspect = (float)ant_vp.Width / (float)ant_vp.Height;
+			vp.Width = vp.Height = 200;
+			vp.MinDepth = 0;
+			vp.MaxDepth = 1;
+			device.Viewport = vp;
+			device.RasterizerState = RasterizerState.CullNone;
+
+			device.DepthStencilState = DepthStencilState.None;
+			Effect.CurrentTechnique = Effect.Techniques["ClearScreen"];
+			Effect.Parameters["World"].SetValue(Matrix.Identity);
+			Effect.Parameters["View"].SetValue(Matrix.Identity);
+			Effect.Parameters["Projection"].SetValue(Matrix.Identity);
+			device.SetVertexBuffer(spriteVertexBuffer);
+			foreach (var pass in Effect.CurrentTechnique.Passes)
+			{
+				pass.Apply();
+				device.DrawPrimitives(PrimitiveType.TriangleList, 0, 2);
+			}
+			device.Clear(ClearOptions.DepthBuffer, Color.White, 1.0f, 0);
+
+			Direction.Y = 0;
+			Direction.Normalize();
+			Matrix View = Matrix.CreateLookAt(Position, Position + Direction * 100, new Vector3(0, 1, 0));
+			Matrix World = Matrix.Identity;
+			float kx = 1.0f / size.X;
+			float ky = 1.0f / size.Y;
+			float kz = 1.0f / size.Z;
+
+			kx *= 5*aspect;
+			kz *= 5;
+			Matrix S = new Matrix(	-kx, 0, 0, 0,
+									0, 0, ky, 0,
+									0, -kz, 0, 0,
+									0, 0, 0.5f, 1);
+
+			Matrix Proj = S ;
+
+			device.SetVertexBuffer(VertexBuffer);
+			Effect.CurrentTechnique = Effect.Techniques["Map"];
+			Effect.Parameters["World"].SetValue(World);
+			Effect.Parameters["View"].SetValue(View);
+			Effect.Parameters["Projection"].SetValue(Proj);
+			Effect.Parameters["Lightmap"].SetValue(lightmap);
+
+			device.BlendState = BlendState.AlphaBlend;
+
+			// escenario estatico
+			var pos = 0;
+			for (var i = 0; i < cant_subsets; i++)
+			{
+				var cant_tri = subset[i].cant_items;
+				var cant_items = cant_tri * 3;
+				if (cant_items > 0)
+				{
+
+					if (mostrar_tools || !subset[i].image_name.StartsWith("TOOLS"))
+					{
+						Effect.Parameters["ModelTexture"].SetValue(texture[i] != null ? texture[i] : texture_default);
+						foreach (var pass in Effect.CurrentTechnique.Passes)
+						{
+							pass.Apply();
+							device.DrawPrimitives(PrimitiveType.TriangleList, pos, cant_tri);
+						}
+					}
+					pos += cant_items;
+				}
+			}
+
+			// modelos estaticos
+			EffectMesh.CurrentTechnique = EffectMesh.Techniques["Map"];
+			for (var L = 0; L < 1; ++L)
+			{
+				for (var i = 0; i < cant_modelos; ++i)
+				{
+					Matrix world = modelos[i].world();
+					CSMDModel p_mesh = mesh_pool.meshes[modelos[i].nro_mesh];
+					p_mesh.Draw(device, EffectMesh, world, View, Proj, L);
+				}
+			}
+
+
+			BeginDrawImage();
+			int W = device.Viewport.Width;
+			int H = device.Viewport.Height;
+			// dibujo la posicion del cero 
+			device.BlendState = BlendState.Additive;
+			DrawImage(0,W/2, H/2,20,20);
+
+			// dibujo la pos. de los enemigos
+			Matrix T = World * View * Proj;
+			for (int i = 0; i < enemigo.Length; ++i)
+            {
+				Vector4 v = Vector4.Transform(enemigo[i].Position, T);
+				if (v.W > 0)
+				{
+					float x = v.X / v.W;
+					float y = v.Y / v.W;
+					float d = x*x + y*y;
+					if (d < 0.9f)
+					{
+						int xs = (int)(W * (0.5f + x / 2));
+						int ys = (int)(H * (0.5 - y / 2));
+						DrawImage(2, xs - 5, ys - 5, 10, 10);
+					}
+				}
+			}
+			device.Viewport = ant_vp;
+			device.DepthStencilState = DepthStencilState.Default;
+
+
+		}
+
+		public void BeginDrawImage()
+        {
+			device.SetVertexBuffer(spriteVertexBuffer);
+			Effect.CurrentTechnique = Effect.Techniques["DrawImage"];
+		}
+
+		public void DrawImage(int nro_imagen,int x,int y,int dx,int dy)
+        {
+			if (images[nro_imagen] == null)
+				return;
+			
+			// por un tema de performance ya tienen que estar definidos de antes
+			// device.SetVertexBuffer(spriteVertexBuffer); 
+			// Effect.CurrentTechnique = Effect.Techniques["DrawImage"];
+
+			int W = device.Viewport.Width;
+			int H = device.Viewport.Height;
+			float ex = 1.0f / (float)W;
+			float ey = 1.0f / (float)H;
+			Matrix world = new Matrix(
+						dx*ex, 0, 0, 0,
+						0, -dy*ey, 0, 0,
+						0, 0, 1, 0,
+						x*ex*2-1, 1-y*ey*2, 0, 1);
+			
+			Effect.Parameters["World"].SetValue(world);
+			Effect.Parameters["ModelTexture"].SetValue(images[nro_imagen]);
+			foreach (var pass in Effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                device.DrawPrimitives(PrimitiveType.TriangleList, 0, 6);
+            }
+		}
 
 		// experimento ray - tracing
 		public float intersectSegment(Vector3 p, Vector3 q , out ip_data hitinfo)

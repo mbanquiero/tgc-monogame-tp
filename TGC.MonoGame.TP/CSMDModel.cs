@@ -97,7 +97,7 @@ namespace TGC.MonoGame.TP
 		public Matrix[] matBoneSpace = new Matrix[MAX_BONES];
 		public float currentTime = 0f;
 		public float speed;
-		public int w_attachment = 0;
+		//public Vector3 w_attachment = new Vector3(0,0,0);
 
 
 		public int cant_cdmaterials;
@@ -159,6 +159,10 @@ namespace TGC.MonoGame.TP
 
 		public bool cargar(String name)
         {
+			if (!File.Exists(folder + name + ".qc"))
+				return false;
+
+
 			string smd_name = null;
 			string smd_folder = Path.GetDirectoryName(name);
 			// cargo el archivo .qc
@@ -756,7 +760,6 @@ namespace TGC.MonoGame.TP
 				}
 			}
 
-
 			/*
 			Vector3 s = new Vector3(1, 1, 1) * 0.1f;
 			if (debugEffect != null)
@@ -772,6 +775,7 @@ namespace TGC.MonoGame.TP
 					}
 				}
 			*/
+
 			/*
 			if (debugEffect != null)
 			{

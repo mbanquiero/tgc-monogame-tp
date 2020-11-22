@@ -27,6 +27,7 @@ struct VertexShaderOutput
     float2 Uv : TEXCOORD0;
     float3 WorldPos: TEXCOORD1;
     float3 Normal : TEXCOORD2;
+    float4 sPos: TEXCOORD4;
 };
 
 texture ModelTexture;
@@ -46,7 +47,7 @@ VertexShaderOutput StaticMeshVS(in VertexShaderInput input)
     VertexShaderOutput output = (VertexShaderOutput)0;
     float4 worldPosition = mul(input.Position, World);
     float4 viewPosition = mul(worldPosition, View);
-    output.Position = mul(viewPosition, Projection);
+    output.sPos = output.Position = mul(viewPosition, Projection);
     output.Normal = mul(input.Normal, World);
     output.Uv = input.Uv;
     output.WorldPos = worldPosition.xyz;
@@ -66,7 +67,7 @@ VertexShaderOutput SkinnedMeshVS(in VertexShaderInput input)
 
     float4 worldPosition = mul(skinnedPosition, World);
     float4 viewPosition = mul(worldPosition, View);
-    output.Position = mul(viewPosition, Projection);
+    output.sPos = output.Position = mul(viewPosition, Projection);
 
     output.Normal = mul(input.Normal, World);
     output.Uv = input.Uv;
@@ -106,4 +107,5 @@ technique SkinnedMesh
         PixelShader = compile PS_SHADERMODEL MainPS();
     }
 };
+
 
