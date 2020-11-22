@@ -364,7 +364,7 @@ namespace TGC.MonoGame.TP
             skybox.Draw(GraphicsDevice, scene.p_min*1.5f, scene.p_max * 1.5f, EffectMesh, View, Projection);
             spriteBatch.Begin();
 
-            drawWeaponDesf();
+            // drawWeaponDesf();
             // drawEnemyInfo();
 
             if (draw_meshinfo)

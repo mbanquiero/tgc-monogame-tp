@@ -15,6 +15,7 @@ namespace TGC.MonoGame.TP
         public Vector3 desf = new Vector3(-4, -1, -14);
         public Vector3 scale = new Vector3(1, 1, 1);
         public Vector3 muzzle_pos = new Vector3(0, 0, 0);
+        public int muzzle_attachment = 0;
         public float pitch = 80;
         public float yaw = 0;
         public int cant_tiros = 20;
@@ -65,27 +66,27 @@ namespace TGC.MonoGame.TP
             device = p_device;
             Content = p_content;
             cs_folder = p_folder;
-
+            
             // Arma
             String[] W = {
+                "v_pist_usp","idle","reload","shoot1",
+                "v_pist_glock18","glock_idle","glock_reload","glock_firesingle",
+                "v_pist_fiveseven","idle","reload","shoot1",
+                "v_pist_elite","idle","reload","shoot_left1",
+                "v_357","idle01","reload","fire",
+                "v_snip_awp","awm_idle","awm_reload","awm_fire",
+                "v_smg_mp5","idle","reload1","shoot1",
+                "v_smg_mac10","mac10_idle","mac10_reload","mac10_fire",
+                "v_shot_m3super90","idle","start_reload","shoot1",
+                "v_rif_sg552","idle","reload","shoot1",
+                "v_rif_m4a1","idle","reload","shoot1",
                 "v_rif_famas","idle","reload","shoot1",
                 "v_rif_aug" , "idle","reload","shoot1",
                 "v_rif_ak47" , "ak47_idle","ak47_reload","ak47_fire1",
+                "v_rif_galil" , "idle","reload","shoot1",
                 "v_pist_deagle" , "idle1","reload","shoot1",
-                "v_knife_t","idle","draw","stab",
-                "v_rif_galil" , "idle","reload","shoot1" };
-
-
-                /*
-                 *                 "v_357" , "idle01","reload","fire" , "22" ,
-                "v_pist_elite","idle","reload","shoot_right1","48",
-                "v_rif_famas","idle","reload","shoot1","40",
-                "v_rpg","idle1","reload","fire","1",
-                "v_shotgun","idle01","reload1","fire","-1" };
-*/
-            //                "v_stunbaton","idle01","draw","attackcm","-1",
-            //                "v_superphyscannon","idle","chargeup","fire","12" };
-            //"v_rif_ak47" , "ak47_idle","ak47_reload","ak47_fire1","63",
+                "v_knife_t","idle","draw","stab"
+                 };
 
             int t = 0;
             while(t<W.Length)
@@ -99,12 +100,105 @@ namespace TGC.MonoGame.TP
 
             int k = 0;
 
+
+            //v_pist_usp
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_attachment = 1;
+            weapons[k].muzzle_pos = new Vector3(0,2.75f,6.5f);
+            k++;
+
+            // v_pist_glock18
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_attachment = 4;
+            weapons[k].muzzle_pos = new Vector3(0,0,6);
+            k++;
+
+            // v_pist_fiveseven
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_attachment = 1;
+            weapons[k].muzzle_pos = new Vector3(0, 2.2f,7.5f);
+            k++;
+
+
+            // v_pist_elite
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_attachment = 22;
+            k++;
+
+            //v_357
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-17, -6, -3);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_attachment = 22;
+            k++;
+
+            //v_snip_awp
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(0,3.5f,28);
+            k++;
+
+            //v_smg_mp5
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(3,6,27.5f);
+            k++;
+
+            //v_smg_mac10
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(0,3,5);
+            k++;
+
+            // v_shot_m3super90
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(2.724713f,2.405631f,16.455919f) + new Vector3(0,3,18);
+            k++;
+
+            //v_rif_sg552
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(3, 5.5f,34);
+            k++;
+
+            //v_rif_m4a1
+            weapons[k].pitch = 73;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-4.7f, -4, -4);
+            weapons[k].scale = new Vector3(1, 1, -1);
+            weapons[k].muzzle_pos = new Vector3(0.20f,3.50f,20.00f);
+            k++;
+
             // famas
             weapons[k].pitch = 79;
             weapons[k].yaw = 14;
             weapons[k].desf = new Vector3(-11, -3, -9);
             weapons[k].scale = new Vector3(1, 1, -1);
-            weapons[k].muzzle_pos = new Vector3(0,0,0);
+            weapons[k].muzzle_pos = new Vector3(-7.7f,0,12f);
             k++;
 
             // aug
@@ -112,7 +206,7 @@ namespace TGC.MonoGame.TP
             weapons[k].yaw = 14;
             weapons[k].desf = new Vector3(-5, -6, -15);
             weapons[k].scale = new Vector3(1, 1, -1);
-            weapons[k].muzzle_pos = new Vector3(-0.20f, 2.70f, 14.00f);
+            weapons[k].muzzle_pos = new Vector3(-1.70f, 2.70f, 15.00f);
             k++;
 
             // ak47 
@@ -120,7 +214,14 @@ namespace TGC.MonoGame.TP
             weapons[k].yaw = 14;
             weapons[k].desf = new Vector3(-5, -6, -15);
             weapons[k].scale = new Vector3(1, 1, -1);
-            weapons[k].muzzle_pos = new Vector3(0,3.50f,19.00f);
+            weapons[k].muzzle_pos = new Vector3(0, 3.50f, 19.00f);
+            k++;
+
+            // galil
+            weapons[k].pitch = 76;
+            weapons[k].yaw = 14;
+            weapons[k].desf = new Vector3(-5, -6, -15);
+            weapons[k].muzzle_pos = new Vector3(1.6f,3.87f,31);
             k++;
 
             // pist Eagle
@@ -141,6 +242,8 @@ namespace TGC.MonoGame.TP
             sp.scale = 0.1f;
             sp.renderamt = 1;
 
+
+            cur_weapon = 9;
         }
 
 
@@ -275,11 +378,21 @@ namespace TGC.MonoGame.TP
             m.Draw(device, effect, world, View, Proj);
 
 
-            if (status == W_FIRING)
+              if (status == W_FIRING)
             {
-                sp.origin = Vector3.Transform(m.bones[0].Position +W.muzzle_pos , m.invMetric * world);
+                // $attachment "1" "v_weapon.famas1" -0.00 0.00 0.00 rotate 0 0 -0
+                // usualmente en el modelo viene un attachment con el lugar donde ubicar el muzzle
+                // el attachment puede estar en referencia a otro hueso tambien, con lo cual se usan
+                // las 2 cosas, W.muzzle_attachment y W.muzzle_pos
+                // en el ejemplo seria
+                // W.muzzle_attachment  = "v_weapon.famas1" 
+                // W.muzzle_pos = -0.00 0.00
+                sp.origin = Vector3.Transform(m.bones[W.muzzle_attachment].Position + W.muzzle_pos, m.invMetric * world);
                 sp.renderamt = Math.Max(0, MathF.Cos(m.currentTime * 50.0f));
-                sp.scale = 0.1f;
+                sp.scale = 0.075f;
+
+                //sp.renderamt = 1;
+                //sp.scale = 0.01f;
 
                 // env sprites
                 var effectSprite = game.scene.EffectMesh;
